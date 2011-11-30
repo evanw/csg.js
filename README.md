@@ -10,11 +10,16 @@ Example usage:
     var sphere = CSG.sphere({ radius: 1.3 });
     var polygons = cube.subtract(sphere).toPolygons();
 
-## Documentation
+# Documentation
 
 [Detailed documentation](http://evanw.github.com/csg.js/docs/) can be automatically generated using [Docco](http://jashkenas.github.com/docco/).
 
-## Implementation Details
+# Demos
+
+[CSG example from Wikipedia](http://evanw.github.com/csg.js/tests/wikipedia.html)
+[Coplanar polygon test cases](http://evanw.github.com/csg.js/tests/coplanar.html)
+
+# Implementation Details
 
 All CSG operations are implemented in terms of two functions, `clipTo()` and `invert()`, which remove parts of a BSP tree inside another BSP tree and swap solid and empty space, respectively. To find the union of `a` and `b`, we want to remove everything in `a` inside `b` and everything in `b` inside `a`, then combine polygons from `a` and `b` into one solid:
 
@@ -33,6 +38,6 @@ The only tricky part is handling overlapping coplanar polygons in both trees. Th
 
 Subtraction and intersection naturally follow from set operations. If union is `A | B`, subtraction is `A - B = ~(~A | B)` and intersection is `A & B = ~(~A | ~B)` where `~` is the complement operator.
 
-## License
+# License
 
 Copyright (c) 2011 Evan Wallace (http://madebyevan.com/), under the [MIT license](http://www.opensource.org/licenses/mit-license.php).
