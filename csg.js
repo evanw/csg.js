@@ -267,8 +267,7 @@ CSG.cylinder = function(options) {
   for (var i = 0; i < slices; i++) {
     var t0 = i / slices, t1 = (i + 1) / slices;
     polygons.push(new CSG.Polygon([start, point(0, t0, -1), point(0, t1, -1)]));
-    polygons.push(new CSG.Polygon([point(0, t1, 0), point(0, t0, 0), point(1, t0, 0)]));
-    polygons.push(new CSG.Polygon([point(0, t1, 0), point(1, t0, 0), point(1, t1, 0)]));
+    polygons.push(new CSG.Polygon([point(0, t1, 0), point(0, t0, 0), point(1, t0, 0), point(1, t1, 0)]));
     polygons.push(new CSG.Polygon([end, point(1, t1, 1), point(1, t0, 1)]));
   }
   return CSG.fromPolygons(polygons);
