@@ -2,7 +2,7 @@
 
 ![](http://evanw.github.com/csg.js/csg.png)
 
-Constructive Solid Geometry (CSG) is a modeling technique that uses Boolean operations like union and intersection to combine 3D solids. This library implements CSG operations elegantly and concisely using BSP trees, and is meant to serve as an easily understandable implementation of the algorithm. All edge cases involving overlapping coplanar polygons in both solids are correctly handled.
+Constructive Solid Geometry (CSG) is a modeling technique that uses Boolean operations like union and intersection to combine 3D solids. This library implements CSG operations on meshes elegantly and concisely using BSP trees, and is meant to serve as an easily understandable implementation of the algorithm. All edge cases involving overlapping coplanar polygons in both solids are correctly handled.
 
 Example usage:
 
@@ -16,7 +16,7 @@ Example usage:
 
 # Demos
 
-* [CSG example from Wikipedia](http://evanw.github.com/csg.js/tests/wikipedia.html)
+* [All CSG operations](http://evanw.github.com/csg.js/tests/intro.html)
 * [Coplanar polygon test cases](http://evanw.github.com/csg.js/tests/coplanar.html)
 
 # Implementation Details

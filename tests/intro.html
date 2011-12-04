@@ -25,6 +25,7 @@ h1, h2 { font: bold 50px/50px 'Helvetica Neue', Helvetica, Arial; }
 h2 { font-size: 30px; margin: 100px 0 0 0; }
 a { color: inherit; }
 .viewer { width: 200px; height: 200px; background: #EEE; }
+#combined .viewer { width: 150px; height: 150px; }
 table { border-collapse: collapse; margin: 0 auto; }
 td { padding: 5px; text-align: center; }
 td code { background: none; border: none; color: inherit; }
@@ -36,52 +37,54 @@ canvas { cursor: move; }
   <p><b>Source code:</b> <a href="http://github.com/evanw/csg.js/">http://github.com/evanw/csg.js/</a><br>
     <b>Documentation:</b> <a href="http://evanw.github.com/csg.js/docs/">http://evanw.github.com/csg.js/docs/</a></p>
 
-  <h2>Coplanar Test Cases</h2>
-  <p>These tests cover all the cases of overlapping coplanar polygons in both solids. To avoid duplicate polygons, the overlapping polygons are kept in the first solid and removed from the second solid.</p>
+  <h2>Introduction</h2>
+  <p>Constructive Solid Geometry (CSG) is a modeling technique that uses Boolean operations like union and intersection to combine 3D solids. This library implements CSG operations on meshes elegantly and concisely using BSP trees, and is meant to serve as an easily understandable implementation of the algorithm. All edge cases involving overlapping coplanar polygons in both solids are correctly handled.</p>
+  <p>Example usage:</p>
+  <pre>var cube = CSG.cube();
+var sphere = CSG.sphere({ radius: 1.3 });
+var polygons = cube.subtract(sphere).toPolygons();</pre>
+
+  <h2>Operations</h2>
+  <p>This library provides three CSG operations: union, subtract, and intersect. The operations are rendered below using <a href="http://github.com/evanw/lightgl.js/">lightgl.js</a> and can be rotated by dragging the mouse.</p>
   <table>
     <tr>
       <td><div id="0" class="viewer"></div><code>a</code></td>
       <td><div id="1" class="viewer"></div><code>b</code></td>
     </tr>
+  </table>
+  <table>
     <tr>
-      <td><div id="2" class="viewer"></div><code>a.inverse()</code></td>
-      <td><div id="3" class="viewer"></div><code>b.inverse()</code></td>
+      <td><div id="2" class="viewer"></div><code>a.union(b)</code></td>
+      <td><div id="3" class="viewer"></div><code>a.subtract(b)</code></td>
+      <td><div id="4" class="viewer"></div><code>a.intersect(b)</code></td>
     </tr>
+  </table>
+  <p>The solids <code>a</code> and <code>b</code> above were generated with the following code:</p>
+  <pre>var a = CSG.cube({ center: [-0.25, -0.25, -0.25] });
+var b = CSG.sphere({ radius: 1.3, center: [0.25, 0.25, 0.25] });</pre>
+
+  <h2>Combined CSG Example</h2>
+  <p>Below is a solid constructed from a combination of operations:</p>
+  <table id="combined">
     <tr>
-      <td><div id="4" class="viewer"></div><code>a.union(b)</code></td>
-      <td><div id="5" class="viewer"></div><code>b.union(a)</code></td>
-    </tr>
-    <tr>
-      <td><div id="6" class="viewer"></div><code>a.subtract(b)</code></td>
-      <td><div id="7" class="viewer"></div><code>b.subtract(a)</code></td>
-    </tr>
-    <tr>
-      <td><div id="8" class="viewer"></div><code>a.intersect(b)</code></td>
-      <td><div id="9" class="viewer"></div><code>b.intersect(a)</code></td>
+      <td><div id="5" class="viewer"></div><code>a</code></td>
+      <td><div id="6" class="viewer"></div><code>b</code></td>
+      <td><div id="7" class="viewer"></div><code>c</code></td>
+      <td><div id="8" class="viewer"></div><code>d</code></td>
+      <td><div id="9" class="viewer"></div><code>e</code></td>
     </tr>
   </table>
   <table>
     <tr>
-      <td><div id="10" class="viewer"></div><code>c</code></td>
-      <td><div id="11" class="viewer"></div><code>d</code></td>
-    </tr>
-    <tr>
-      <td><div id="12" class="viewer"></div><code>c.inverse()</code></td>
-      <td><div id="13" class="viewer"></div><code>d.inverse()</code></td>
-    </tr>
-    <tr>
-      <td><div id="14" class="viewer"></div><code>c.union(d)</code></td>
-      <td><div id="15" class="viewer"></div><code>d.union(c)</code></td>
-    </tr>
-    <tr>
-      <td><div id="16" class="viewer"></div><code>c.subtract(d)</code></td>
-      <td><div id="17" class="viewer"></div><code>d.subtract(c)</code></td>
-    </tr>
-    <tr>
-      <td><div id="18" class="viewer"></div><code>c.intersect(d)</code></td>
-      <td><div id="19" class="viewer"></div><code>d.intersect(c)</code></td>
+      <td><div id="10" class="viewer" style="width:400px;height:400px;"></div><code>a.intersect(b).subtract(c.union(d).union(e))</code></td>
     </tr>
   </table>
+  <p>The solids above were generated with the following code:</p>
+  <pre>var a = CSG.cube();
+var b = CSG.sphere({ radius: 1.35, stacks: 12 });
+var c = CSG.cylinder({ radius: 0.7, start: new CSG.Vector(-1, 0, 0), end: new CSG.Vector(1, 0, 0) });
+var d = CSG.cylinder({ radius: 0.7, start: new CSG.Vector(0, -1, 0), end: new CSG.Vector(0, 1, 0) });
+var e = CSG.cylinder({ radius: 0.7, start: new CSG.Vector(0, 0, -1), end: new CSG.Vector(0, 0, 1) });</pre>
 
   <script>
 
@@ -216,46 +219,44 @@ function addViewer(viewer) {
   document.getElementById(nextID++).appendChild(viewer.gl.canvas);
 }
 
-// Test all coplanar cases
-var a = CSG.cube();
-var b = CSG.cylinder({ slices: 8, start: new CSG.Vector(-1, 0, 0), end: new CSG.Vector(1, 0, 0) });
-b = b.union(CSG.cylinder({ slices: 8, start: new CSG.Vector(0, -1, 0), end: new CSG.Vector(0, 1, 0) }));
-b = b.union(CSG.cylinder({ slices: 8, start: new CSG.Vector(0, 0, -1), end: new CSG.Vector(0, 0, 1) }));
-var c = CSG.cube({ radius: 0.5 });
-var d = CSG.cylinder({ radius: 0.5, slices: 8, start: new CSG.Vector(-1, 0, 0), end: new CSG.Vector(-0.5, 0, 0) });
-d = d.union(CSG.cylinder({ radius: 0.5, slices: 8, start: new CSG.Vector(0.5, 0, 0), end: new CSG.Vector(1, 0, 0) }));
-d = d.union(CSG.cylinder({ radius: 0.5, slices: 8, start: new CSG.Vector(0, -1, 0), end: new CSG.Vector(0, -0.5, 0) }));
-d = d.union(CSG.cylinder({ radius: 0.5, slices: 8, start: new CSG.Vector(0, 0.5, 0), end: new CSG.Vector(0, 1, 0) }));
-d = d.union(CSG.cylinder({ radius: 0.5, slices: 8, start: new CSG.Vector(0, 0, -1), end: new CSG.Vector(0, 0, -0.5) }));
-d = d.union(CSG.cylinder({ radius: 0.5, slices: 8, start: new CSG.Vector(0, 0, 0.5), end: new CSG.Vector(0, 0, 1) }));
+// Test simple cases
+var a = CSG.cube({ center: [-0.25, -0.25, -0.25] });
+var b = CSG.sphere({ radius: 1.3, center: [0.25, 0.25, 0.25] });
 a.setColor(1, 0, 0);
 b.setColor(0, 0, 1);
-c.setColor(0, 1, 0);
-d.setColor(1, 1, 0);
 var operations = [
   a,
   b,
-  a.inverse(),
-  b.inverse(),
   a.union(b),
-  b.union(a),
   a.subtract(b),
-  b.subtract(a),
-  a.intersect(b),
-  b.intersect(a),
-  c,
-  d,
-  c.inverse(),
-  d.inverse(),
-  c.union(d),
-  d.union(c),
-  c.subtract(d),
-  d.subtract(c),
-  c.intersect(d),
-  d.intersect(c)
+  a.intersect(b)
 ];
 for (var i = 0; i < operations.length; i++) {
   addViewer(new Viewer(operations[i], 200, 200, 6));
+}
+
+// Generate example from wikipedia
+var a = CSG.cube();
+var b = CSG.sphere({ radius: 1.35, stacks: 12 });
+var c = CSG.cylinder({ radius: 0.7, start: new CSG.Vector(-1, 0, 0), end: new CSG.Vector(1, 0, 0) });
+var d = CSG.cylinder({ radius: 0.7, start: new CSG.Vector(0, -1, 0), end: new CSG.Vector(0, 1, 0) });
+var e = CSG.cylinder({ radius: 0.7, start: new CSG.Vector(0, 0, -1), end: new CSG.Vector(0, 0, 1) });
+a.setColor(1, 0, 0);
+b.setColor(0, 0, 1);
+c.setColor(0, 1, 0);
+d.setColor(0, 1, 0);
+e.setColor(0, 1, 0);
+var operations = [
+  a,
+  b,
+  c,
+  d,
+  e,
+  a.intersect(b).subtract(c.union(d).union(e))
+];
+for (var i = 0; i < operations.length; i++) {
+  var size = i + 1 == operations.length ? 400 : 150;
+  addViewer(new Viewer(operations[i], size, size, 5));
 }
 
   </script>
