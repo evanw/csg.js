@@ -24,7 +24,7 @@ pre { padding: 10px; }
 h1, h2 { font: bold 50px/50px 'Helvetica Neue', Helvetica, Arial; }
 h2 { font-size: 30px; margin: 100px 0 0 0; }
 a { color: inherit; }
-.viewer { width: 200px; height: 200px; background: #EEE; }
+.viewer { width: 200px; height: 200px; background: #EEE url(images.png); }
 #combined .viewer { width: 150px; height: 150px; }
 table { border-collapse: collapse; margin: 0 auto; }
 td { padding: 5px; text-align: center; }
@@ -45,18 +45,18 @@ var sphere = CSG.sphere({ radius: 1.3 });
 var polygons = cube.subtract(sphere).toPolygons();</pre>
 
   <h2>Operations</h2>
-  <p>This library provides three CSG operations: union, subtract, and intersect. The operations are rendered below using <a href="http://github.com/evanw/lightgl.js/">lightgl.js</a> and can be rotated by dragging the mouse.</p>
+  <p>This library provides three CSG operations: union, subtract, and intersect. The operations are rendered below using <a href="http://github.com/evanw/lightgl.js/">lightgl.js</a> and can be rotated by dragging the mouse if your browser supports WebGL.</p>
   <table>
     <tr>
-      <td><div id="0" class="viewer"></div><code>a</code></td>
-      <td><div id="1" class="viewer"></div><code>b</code></td>
+      <td><div id="0" class="viewer" style="background-position:-1px -1px;"></div><code>a</code></td>
+      <td><div id="1" class="viewer" style="background-position:-202px -1px;"></div><code>b</code></td>
     </tr>
   </table>
   <table>
     <tr>
-      <td><div id="2" class="viewer"></div><code>a.union(b)</code></td>
-      <td><div id="3" class="viewer"></div><code>a.subtract(b)</code></td>
-      <td><div id="4" class="viewer"></div><code>a.intersect(b)</code></td>
+      <td><div id="2" class="viewer" style="background-position:-1px -202px;"></div><code>a.union(b)</code></td>
+      <td><div id="3" class="viewer" style="background-position:-202px -202px;"></div><code>a.subtract(b)</code></td>
+      <td><div id="4" class="viewer" style="background-position:-804px -1px;"></div><code>a.intersect(b)</code></td>
     </tr>
   </table>
   <p>The solids <code>a</code> and <code>b</code> above were generated with the following code:</p>
@@ -67,16 +67,16 @@ var b = CSG.sphere({ radius: 1.3, center: [0.25, 0.25, 0.25] });</pre>
   <p>Below is a solid constructed from a combination of operations:</p>
   <table id="combined">
     <tr>
-      <td><div id="5" class="viewer"></div><code>a</code></td>
-      <td><div id="6" class="viewer"></div><code>b</code></td>
-      <td><div id="7" class="viewer"></div><code>c</code></td>
-      <td><div id="8" class="viewer"></div><code>d</code></td>
-      <td><div id="9" class="viewer"></div><code>e</code></td>
+      <td><div id="5" class="viewer" style="background-position:-1005px -1px;"></div><code>a</code></td>
+      <td><div id="6" class="viewer" style="background-position:-1156px -1px;"></div><code>b</code></td>
+      <td><div id="7" class="viewer" style="background-position:-804px -202px;"></div><code>c</code></td>
+      <td><div id="8" class="viewer" style="background-position:-955px -202px;"></div><code>d</code></td>
+      <td><div id="9" class="viewer" style="background-position:-1106px -202px;"></div><code>e</code></td>
     </tr>
   </table>
   <table>
     <tr>
-      <td><div id="10" class="viewer" style="width:400px;height:400px;"></div><code>a.intersect(b).subtract(c.union(d).union(e))</code></td>
+      <td><div id="10" class="viewer" style="background-position:-403px -1px;width:400px;height:400px;"></div><code>a.intersect(b).subtract(c.union(d).union(e))</code></td>
     </tr>
   </table>
   <p>The solids above were generated with the following code:</p>
