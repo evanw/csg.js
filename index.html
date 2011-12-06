@@ -11,7 +11,7 @@ body {
   padding: 50px 50px 200px 50px;
 }
 
-pre, code {
+pre, code, textarea {
   font: 12px/20px Monaco, monospace;
   border: 1px solid #CCC;
   border-radius: 3px;
@@ -19,7 +19,16 @@ pre, code {
   padding: 0 3px;
   color: #555;
 }
-pre { padding: 10px; }
+pre, textarea {
+  padding: 10px;
+  width: 100%;
+}
+textarea {
+  height: 200px;
+}
+textarea:focus {
+  outline: none;
+}
 
 h1, h2 { font: bold 50px/50px 'Helvetica Neue', Helvetica, Arial; }
 h2 { font-size: 30px; margin: 100px 0 0 0; }
@@ -82,9 +91,24 @@ var b = CSG.sphere({ radius: 1.3, center: [0.25, 0.25, 0.25] });</pre>
   <p>The solids above were generated with the following code:</p>
   <pre>var a = CSG.cube();
 var b = CSG.sphere({ radius: 1.35, stacks: 12 });
-var c = CSG.cylinder({ radius: 0.7, start: new CSG.Vector(-1, 0, 0), end: new CSG.Vector(1, 0, 0) });
-var d = CSG.cylinder({ radius: 0.7, start: new CSG.Vector(0, -1, 0), end: new CSG.Vector(0, 1, 0) });
-var e = CSG.cylinder({ radius: 0.7, start: new CSG.Vector(0, 0, -1), end: new CSG.Vector(0, 0, 1) });</pre>
+var c = CSG.cylinder({ radius: 0.7, start: [-1, 0, 0], end: [1, 0, 0] });
+var d = CSG.cylinder({ radius: 0.7, start: [0, -1, 0], end: [0, 1, 0] });
+var e = CSG.cylinder({ radius: 0.7, start: [0, 0, -1], end: [0, 0, 1] });</pre>
+
+  <h2>Try it!</h2>
+  <table>
+    <tr>
+      <td><div id="11" class="viewer" style="background-image:none;width:400px;height:400px;"></div></td>
+    </tr>
+  </table>
+  <p>Edit the code below to construct your own solids. A browser with WebGL is required to view the results. The <code>setColor(r, g, b)</code> function sets the color of the solid using values between 0 and 1 (just for display, not part of csg.js):</p>
+  <textarea id="tryit">var a = CSG.cube();
+var b = CSG.sphere({ radius: 1.35 });
+a.setColor(1, 0, 0);
+b.setColor(0, 0, 1);
+return a.subtract(b);
+</textarea>
+  <p id="error"></p>
 
   <script>
 
@@ -93,6 +117,7 @@ CSG.prototype.setColor = function(r, g, b) {
   this.toPolygons().map(function(polygon) {
     polygon.shared = [r, g, b];
   });
+  return this;
 };
 
 // Convert from CSG solid to GL.Mesh object
@@ -101,7 +126,7 @@ CSG.prototype.toMesh = function() {
   var indexer = new GL.Indexer();
   this.toPolygons().map(function(polygon) {
     var indices = polygon.vertices.map(function(vertex) {
-      vertex.color = polygon.shared;
+      vertex.color = polygon.shared || [1, 1, 1];
       return indexer.add(vertex);
     });
     for (var i = 2; i < indices.length; i++) {
@@ -238,9 +263,9 @@ for (var i = 0; i < operations.length; i++) {
 // Generate example from wikipedia
 var a = CSG.cube();
 var b = CSG.sphere({ radius: 1.35, stacks: 12 });
-var c = CSG.cylinder({ radius: 0.7, start: new CSG.Vector(-1, 0, 0), end: new CSG.Vector(1, 0, 0) });
-var d = CSG.cylinder({ radius: 0.7, start: new CSG.Vector(0, -1, 0), end: new CSG.Vector(0, 1, 0) });
-var e = CSG.cylinder({ radius: 0.7, start: new CSG.Vector(0, 0, -1), end: new CSG.Vector(0, 0, 1) });
+var c = CSG.cylinder({ radius: 0.7, start: [-1, 0, 0], end: [1, 0, 0] });
+var d = CSG.cylinder({ radius: 0.7, start: [0, -1, 0], end: [0, 1, 0] });
+var e = CSG.cylinder({ radius: 0.7, start: [0, 0, -1], end: [0, 0, 1] });
 a.setColor(1, 0, 0);
 b.setColor(0, 0, 1);
 c.setColor(0, 1, 0);
@@ -258,6 +283,28 @@ for (var i = 0; i < operations.length; i++) {
   var size = i + 1 == operations.length ? 400 : 150;
   addViewer(new Viewer(operations[i], size, size, 5));
 }
+
+// Set up interactive demo
+var tryit = document.getElementById('tryit');
+var timeout = null;
+var viewer = new Viewer(new CSG(), 400, 400, 5);
+addViewer(viewer);
+function rebuild() {
+  var error = document.getElementById('error');
+  try {
+    var solid = new Function(tryit.value)();
+    error.innerHTML = '';
+  } catch (e) {
+    error.innerHTML = 'Error: <code>' + e.toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code>';
+  }
+  viewer.mesh = solid.toMesh();
+  viewer.gl.ondraw();
+}
+tryit.onkeydown = function() {
+  if (timeout) clearTimeout(timeout);
+  timeout = setTimeout(rebuild, 100);
+};
+rebuild();
 
   </script>
 </body></html>
