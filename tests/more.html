@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html><head>
+  <script src="lightgl.js"></script>
+  <script src="../csg.js"></script>
+  <script src="gourd.js"></script>
+  <script src="viewer.js"></script>
+  <style>
+
+body {
+  font: 14px/20px 'Helvetica Neue Light', HelveticaNeue-Light, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 50px 50px 200px 50px;
+}
+
+pre, code {
+  font: 12px/20px Monaco, monospace;
+  border: 1px solid #CCC;
+  border-radius: 3px;
+  background: #F9F9F9;
+  padding: 0 3px;
+  color: #555;
+}
+pre { padding: 10px; }
+
+h1, h2 { font: bold 50px/50px 'Helvetica Neue', Helvetica, Arial; }
+h2 { font-size: 30px; margin: 100px 0 0 0; }
+a { color: inherit; }
+.viewer { width: 250px; height: 250px; background: #EEE; }
+table { border-collapse: collapse; margin: 0 auto; }
+td { padding: 5px; text-align: center; }
+td code { background: none; border: none; color: inherit; }
+canvas { cursor: move; }
+
+  </style>
+</head><body>
+  <h1>csg.js</h1>
+  <p><b>Source code:</b> <a href="http://github.com/evanw/csg.js/">http://github.com/evanw/csg.js/</a><br>
+    <b>Documentation:</b> <a href="http://evanw.github.com/csg.js/docs/">http://evanw.github.com/csg.js/docs/</a></p>
+
+  <h2>Gourd Test Cases</h2>
+  <p>These tests involve a model that isn't convex.</p>
+  <table>
+    <tr>
+      <td><div id="0" class="viewer"></div><code>gourd.union(cyl)</code></td>
+      <td><div id="1" class="viewer"></div><code>gourd.intersect(cyl)</code></td>
+    </tr>
+    <tr>
+      <td><div id="2" class="viewer"></div><code>gourd.subtract(cyl)</code></td>
+      <td><div id="3" class="viewer"></div><code>cyl.subtract(gourd)</code></td>
+    </tr>
+  </table>
+
+  <h2>Repeated Plane Test Cases</h2>
+  <p>These tests cover some cases where identical but opposite planes occur in the same solid.</p>
+  <table>
+    <tr>
+      <td><div id="4" class="viewer"></div><code>a</code></td>
+      <td><div id="5" class="viewer"></div><code>b</code></td>
+    </tr>
+    <tr>
+      <td><div id="6" class="viewer"></div><code>b.subtract(b).union(a)</code></td>
+      <td><div id="7" class="viewer"></div><code>a.subtract(b).union(b).subtract(b)</code></td>
+    </tr>
+    <tr>
+      <td><div id="8" class="viewer"></div><code>b.inverse().union(a)</code></td>
+      <td><div id="9" class="viewer"></div><code>b.subtract(b).union(a).subtract(b)</code></td>
+    </tr>
+  </table>
+
+  <script>
+
+// Gourd
+var gourd = CSG.fromPolygons(gourdModel.triangles.map(function(tri) {
+  return new CSG.Polygon(tri.map(function(i) {
+    return new CSG.Vertex(gourdModel.vertices[i], gourdModel.normals[i]);
+  }));
+}));
+var cyl = CSG.cylinder({ radius: 0.4, start: [0.6, 0.8, -0.6], end: [-0.6, -0.8, 0.6] });
+gourd.setColor(0.5, 1, 0);
+cyl.setColor(0, 0.5, 1);
+
+// Test some duplicate coplanar cases
+var a = CSG.cube();
+var b = CSG.cylinder();
+a.setColor(1, 1, 0);
+b.setColor(0, 0.5, 1);
+
+// Create viewers
+var operations = [
+  gourd.union(cyl),
+  gourd.intersect(cyl),
+  gourd.subtract(cyl),
+  cyl.subtract(gourd),
+  a,
+  b,
+  b.subtract(b).union(a),
+  a.subtract(b).union(b).subtract(b),
+  a.subtract(b),
+  b.subtract(b).union(a).subtract(b)
+];
+Viewer.lineOverlay = true;
+for (var i = 0; i < operations.length; i++) {
+  addViewer(new Viewer(operations[i], 250, 250, 5));
+}
+
+  </script>
+</body></html>

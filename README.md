@@ -17,7 +17,8 @@ Example usage:
 # Demos
 
 * [All CSG operations](http://evanw.github.com/csg.js/)
-* [Coplanar polygon test cases](http://evanw.github.com/csg.js/coplanar.html)
+* [Coplanar test cases](http://evanw.github.com/csg.js/coplanar.html)
+* [More test cases](http://evanw.github.com/csg.js/more.html)
 
 # Implementation Details
 

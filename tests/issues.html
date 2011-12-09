@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html><head>
+  <script src="lightgl.js"></script>
+  <script src="../csg.js"></script>
+  <script src="gourd.js"></script>
+  <script src="viewer.js"></script>
+  <style>
+
+body {
+  font: 14px/20px 'Helvetica Neue Light', HelveticaNeue-Light, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 50px 50px 200px 50px;
+}
+
+pre, code {
+  font: 12px/20px Monaco, monospace;
+  border: 1px solid #CCC;
+  border-radius: 3px;
+  background: #F9F9F9;
+  padding: 0 3px;
+  color: #555;
+}
+pre { padding: 10px; }
+
+h1, h2 { font: bold 50px/50px 'Helvetica Neue', Helvetica, Arial; }
+h2 { font-size: 30px; margin: 100px 0 0 0; }
+a { color: inherit; }
+.viewer { width: 250px; height: 250px; background: #EEE; }
+table { border-collapse: collapse; margin: 0 auto; }
+td { padding: 5px; text-align: center; }
+td code { background: none; border: none; color: inherit; }
+canvas { cursor: move; }
+
+  </style>
+</head><body>
+  <h1>csg.js</h1>
+  <p><b>Source code:</b> <a href="http://github.com/evanw/csg.js/">http://github.com/evanw/csg.js/</a><br>
+    <b>Documentation:</b> <a href="http://evanw.github.com/csg.js/docs/">http://evanw.github.com/csg.js/docs/</a></p>
+
+  <h2>Issue Test Cases</h2>
+  <p>These are test cases from GitHub issues.</p>
+  <table>
+    <tr>
+      <td><div id="0" class="viewer"></div><code>Issue 1</code></td>
+    </tr>
+  </table>
+
+  <script>
+
+// Test case from issue 1
+var a = CSG.cube();
+var b = CSG.sphere({ radius: 0.4, stacks: 12 });
+var c = CSG.cylinder({ radius: 0.9, start: [-1, 0, 0], end: [1, 0, 0] });
+var d = CSG.cylinder({ radius: 0.3, start: [0, -1, 0], end: [0, 1, 0] });
+var e = CSG.cylinder({ radius: 0.3, start: [0, 0, -1], end: [0, 0, 1] });
+var issue1 = a.subtract(b).subtract(c).subtract(d).subtract(e);
+
+// Create viewers
+var operations = [
+  issue1
+];
+Viewer.lineOverlay = true;
+for (var i = 0; i < operations.length; i++) {
+  addViewer(new Viewer(operations[i], 250, 250, 5));
+}
+
+  </script>
+</body></html>
