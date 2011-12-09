@@ -19,21 +19,21 @@
 // want to remove everything in `a` inside `b` and everything in `b` inside `a`,
 // then combine polygons from `a` and `b` into one solid:
 // 
-//     a.root.clipTo(b.root);
-//     b.root.clipTo(a.root);
-//     a.root.build(b.root.allPolygons());
+//     a.clipTo(b);
+//     b.clipTo(a);
+//     a.build(b.allPolygons());
 // 
 // The only tricky part is handling overlapping coplanar polygons in both trees.
 // The code above keeps both copies, but we need to keep them in one tree and
 // remove them in the other tree. To remove them from `b` we can clip the
 // inverse of `b` against `a`. The code for union now looks like this:
 // 
-//     a.root.clipTo(b.root);
-//     b.root.clipTo(a.root);
-//     b.root.invert();
-//     b.root.clipTo(a.root);
-//     b.root.invert();
-//     a.root.build(b.root.allPolygons());
+//     a.clipTo(b);
+//     b.clipTo(a);
+//     b.invert();
+//     b.clipTo(a);
+//     b.invert();
+//     a.build(b.allPolygons());
 // 
 // Subtraction and intersection naturally follow from set operations. If
 // union is `A | B`, subtraction is `A - B = ~(~A | B)` and intersection is
@@ -49,29 +49,29 @@
 // be combined using the `union()`, `subtract()`, and `intersect()` methods.
 
 CSG = function() {
-  this.root = new CSG.Node();
+  this.polygons = [];
 };
 
 // Construct a CSG solid from a list of `CSG.Polygon` instances.
 CSG.fromPolygons = function(polygons) {
-  var bsp = new CSG();
-  bsp.root.build(polygons);
-  return bsp;
+  var csg = new CSG();
+  csg.polygons = polygons;
+  return csg;
 };
 
 CSG.prototype = {
   clone: function() {
-    var bsp = new CSG();
-    bsp.root = this.root.clone();
-    return bsp;
+    var csg = new CSG();
+    csg.polygons = this.polygons.map(function(p) { return p.clone(); });
+    return csg;
   },
 
   toPolygons: function() {
-    return this.root.allPolygons();
+    return this.polygons;
   },
 
   // Return a new CSG solid representing space in either this solid or in the
-  // solid `bsp`. Neither this solid nor the solid `bsp` are modified.
+  // solid `csg`. Neither this solid nor the solid `csg` are modified.
   // 
   //     A.union(B)
   // 
@@ -84,19 +84,20 @@ CSG.prototype = {
   //          |       |            |       |
   //          +-------+            +-------+
   // 
-  union: function(bsp) {
-    var a = this.clone(), b = bsp.clone();
-    a.root.clipTo(b.root);
-    b.root.clipTo(a.root);
-    b.root.invert();
-    b.root.clipTo(a.root);
-    b.root.invert();
-    a.root.build(b.root.allPolygons());
-    return a;
+  union: function(csg) {
+    var a = new CSG.Node(this.clone().polygons);
+    var b = new CSG.Node(csg.clone().polygons);
+    a.clipTo(b);
+    b.clipTo(a);
+    b.invert();
+    b.clipTo(a);
+    b.invert();
+    a.build(b.allPolygons());
+    return CSG.fromPolygons(a.allPolygons());
   },
 
   // Return a new CSG solid representing space in this solid but not in the
-  // solid `bsp`. Neither this solid nor the solid `bsp` are modified.
+  // solid `csg`. Neither this solid nor the solid `csg` are modified.
   // 
   //     A.subtract(B)
   // 
@@ -109,21 +110,22 @@ CSG.prototype = {
   //          |       |
   //          +-------+
   // 
-  subtract: function(bsp) {
-    var a = this.clone(), b = bsp.clone();
-    a.root.invert();
-    a.root.clipTo(b.root);
-    b.root.clipTo(a.root);
-    b.root.invert();
-    b.root.clipTo(a.root);
-    b.root.invert();
-    a.root.build(b.root.allPolygons());
-    a.root.invert();
-    return a;
+  subtract: function(csg) {
+    var a = new CSG.Node(this.clone().polygons);
+    var b = new CSG.Node(csg.clone().polygons);
+    a.invert();
+    a.clipTo(b);
+    b.clipTo(a);
+    b.invert();
+    b.clipTo(a);
+    b.invert();
+    a.build(b.allPolygons());
+    a.invert();
+    return CSG.fromPolygons(a.allPolygons());
   },
 
   // Return a new CSG solid representing space both this solid and in the
-  // solid `bsp`. Neither this solid nor the solid `bsp` are modified.
+  // solid `csg`. Neither this solid nor the solid `csg` are modified.
   // 
   //     A.intersect(B)
   // 
@@ -136,24 +138,25 @@ CSG.prototype = {
   //          |       |
   //          +-------+
   // 
-  intersect: function(bsp) {
-    var a = this.clone(), b = bsp.clone();
-    a.root.invert();
-    b.root.clipTo(a.root);
-    b.root.invert();
-    a.root.clipTo(b.root);
-    b.root.clipTo(a.root);
-    a.root.build(b.root.allPolygons());
-    a.root.invert();
-    return a;
+  intersect: function(csg) {
+    var a = new CSG.Node(this.clone().polygons);
+    var b = new CSG.Node(csg.clone().polygons);
+    a.invert();
+    b.clipTo(a);
+    b.invert();
+    a.clipTo(b);
+    b.clipTo(a);
+    a.build(b.allPolygons());
+    a.invert();
+    return CSG.fromPolygons(a.allPolygons());
   },
 
   // Return a new CSG solid with solid and empty space switched. This solid is
   // not modified.
   inverse: function() {
-    var bsp = this.clone();
-    bsp.root.invert();
-    return bsp;
+    var csg = this.clone();
+    csg.polygons.map(function(p) { p.flip(); });
+    return csg;
   }
 };
 
@@ -506,11 +509,12 @@ CSG.Polygon.prototype = {
 // the front and/or back subtrees. This is not a leafy BSP tree since there is
 // no distinction between internal and leaf nodes.
 
-CSG.Node = function() {
+CSG.Node = function(polygons) {
   this.plane = null;
   this.front = null;
   this.back = null;
   this.polygons = [];
+  if (polygons) this.build(polygons);
 };
 
 CSG.Node.prototype = {
@@ -539,6 +543,7 @@ CSG.Node.prototype = {
   // Recursively remove all polygons in `polygons` that are inside this BSP
   // tree.
   clipPolygons: function(polygons) {
+    if (!this.plane) return polygons.slice();
     var front = [], back = [];
     for (var i = 0; i < polygons.length; i++) {
       this.plane.splitPolygon(polygons[i], front, back, front, back);

@@ -24,18 +24,18 @@ Example usage:
 
 All CSG operations are implemented in terms of two functions, `clipTo()` and `invert()`, which remove parts of a BSP tree inside another BSP tree and swap solid and empty space, respectively. To find the union of `a` and `b`, we want to remove everything in `a` inside `b` and everything in `b` inside `a`, then combine polygons from `a` and `b` into one solid:
 
-    a.root.clipTo(b.root);
-    b.root.clipTo(a.root);
-    a.root.build(b.root.allPolygons());
+    a.clipTo(b);
+    b.clipTo(a);
+    a.build(b.allPolygons());
 
 The only tricky part is handling overlapping coplanar polygons in both trees. The code above keeps both copies, but we need to keep them in one tree and remove them in the other tree. To remove them from `b` we can clip the inverse of `b` against `a`. The code for union now looks like this:
 
-    a.root.clipTo(b.root);
-    b.root.clipTo(a.root);
-    b.root.invert();
-    b.root.clipTo(a.root);
-    b.root.invert();
-    a.root.build(b.root.allPolygons());
+    a.clipTo(b);
+    b.clipTo(a);
+    b.invert();
+    b.clipTo(a);
+    b.invert();
+    a.build(b.allPolygons());
 
 Subtraction and intersection naturally follow from set operations. If union is `A | B`, subtraction is `A - B = ~(~A | B)` and intersection is `A & B = ~(~A | ~B)` where `~` is the complement operator.
 
