@@ -20,9 +20,9 @@ solid and empty space, respectively. To find the union of <code>a</code> and <co
 want to remove everything in <code>a</code> inside <code>b</code> and everything in <code>b</code> inside <code>a</code>,
 then combine polygons from <code>a</code> and <code>b</code> into one solid:</p>
 
-<pre><code>a.root.clipTo(b.root);
-b.root.clipTo(a.root);
-a.root.build(b.root.allPolygons());
+<pre><code>a.clipTo(b);
+b.clipTo(a);
+a.build(b.allPolygons());
 </code></pre>
 
 <p>The only tricky part is handling overlapping coplanar polygons in both trees.
@@ -30,12 +30,12 @@ The code above keeps both copies, but we need to keep them in one tree and
 remove them in the other tree. To remove them from <code>b</code> we can clip the
 inverse of <code>b</code> against <code>a</code>. The code for union now looks like this:</p>
 
-<pre><code>a.root.clipTo(b.root);
-b.root.clipTo(a.root);
-b.root.invert();
-b.root.clipTo(a.root);
-b.root.invert();
-a.root.build(b.root.allPolygons());
+<pre><code>a.clipTo(b);
+b.clipTo(a);
+b.invert();
+b.clipTo(a);
+b.invert();
+a.build(b.allPolygons());
 </code></pre>
 
 <p>Subtraction and intersection naturally follow from set operations. If
@@ -46,24 +46,24 @@ union is <code>A | B</code>, subtraction is <code>A - B = ~(~A | B)</code> and i
 
 <p>Copyright (c) 2011 Evan Wallace (http://madebyevan.com/), under the MIT license.</p>             </td>             <td class="code">               <div class="highlight"><pre></pre></div>             </td>           </tr>                               <tr id="section-2">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-2">&#182;</a>               </div>               <h1>class CSG</h1>             </td>             <td class="code">               <div class="highlight"><pre></pre></div>             </td>           </tr>                               <tr id="section-3">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-3">&#182;</a>               </div>               <p>Holds a binary space partition tree representing a 3D solid. Two solids can
 be combined using the <code>union()</code>, <code>subtract()</code>, and <code>intersect()</code> methods.</p>             </td>             <td class="code">               <div class="highlight"><pre><span class="nx">CSG</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
-  <span class="k">this</span><span class="p">.</span><span class="nx">root</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">CSG</span><span class="p">.</span><span class="nx">Node</span><span class="p">();</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">polygons</span> <span class="o">=</span> <span class="p">[];</span>
 <span class="p">};</span></pre></div>             </td>           </tr>                               <tr id="section-4">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-4">&#182;</a>               </div>               <p>Construct a CSG solid from a list of <code>CSG.Polygon</code> instances.</p>             </td>             <td class="code">               <div class="highlight"><pre><span class="nx">CSG</span><span class="p">.</span><span class="nx">fromPolygons</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">polygons</span><span class="p">)</span> <span class="p">{</span>
-  <span class="kd">var</span> <span class="nx">bsp</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">CSG</span><span class="p">();</span>
-  <span class="nx">bsp</span><span class="p">.</span><span class="nx">root</span><span class="p">.</span><span class="nx">build</span><span class="p">(</span><span class="nx">polygons</span><span class="p">);</span>
-  <span class="k">return</span> <span class="nx">bsp</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">csg</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">CSG</span><span class="p">();</span>
+  <span class="nx">csg</span><span class="p">.</span><span class="nx">polygons</span> <span class="o">=</span> <span class="nx">polygons</span><span class="p">;</span>
+  <span class="k">return</span> <span class="nx">csg</span><span class="p">;</span>
 <span class="p">};</span>
 
 <span class="nx">CSG</span><span class="p">.</span><span class="nx">prototype</span> <span class="o">=</span> <span class="p">{</span>
   <span class="nx">clone</span><span class="o">:</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
-    <span class="kd">var</span> <span class="nx">bsp</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">CSG</span><span class="p">();</span>
-    <span class="nx">bsp</span><span class="p">.</span><span class="nx">root</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">root</span><span class="p">.</span><span class="nx">clone</span><span class="p">();</span>
-    <span class="k">return</span> <span class="nx">bsp</span><span class="p">;</span>
+    <span class="kd">var</span> <span class="nx">csg</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">CSG</span><span class="p">();</span>
+    <span class="nx">csg</span><span class="p">.</span><span class="nx">polygons</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">polygons</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">p</span><span class="p">)</span> <span class="p">{</span> <span class="k">return</span> <span class="nx">p</span><span class="p">.</span><span class="nx">clone</span><span class="p">();</span> <span class="p">});</span>
+    <span class="k">return</span> <span class="nx">csg</span><span class="p">;</span>
   <span class="p">},</span>
 
   <span class="nx">toPolygons</span><span class="o">:</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
-    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">root</span><span class="p">.</span><span class="nx">allPolygons</span><span class="p">();</span>
+    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">polygons</span><span class="p">;</span>
   <span class="p">},</span></pre></div>             </td>           </tr>                               <tr id="section-5">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-5">&#182;</a>               </div>               <p>Return a new CSG solid representing space in either this solid or in the
-solid <code>bsp</code>. Neither this solid nor the solid <code>bsp</code> are modified.</p>
+solid <code>csg</code>. Neither this solid nor the solid <code>csg</code> are modified.</p>
 
 <pre><code>A.union(B)
 
@@ -75,17 +75,18 @@ solid <code>bsp</code>. Neither this solid nor the solid <code>bsp</code> are mo
      |   B   |            |       |
      |       |            |       |
      +-------+            +-------+
-</code></pre>             </td>             <td class="code">               <div class="highlight"><pre>  <span class="nx">union</span><span class="o">:</span> <span class="kd">function</span><span class="p">(</span><span class="nx">bsp</span><span class="p">)</span> <span class="p">{</span>
-    <span class="kd">var</span> <span class="nx">a</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">clone</span><span class="p">(),</span> <span class="nx">b</span> <span class="o">=</span> <span class="nx">bsp</span><span class="p">.</span><span class="nx">clone</span><span class="p">();</span>
-    <span class="nx">a</span><span class="p">.</span><span class="nx">root</span><span class="p">.</span><span class="nx">clipTo</span><span class="p">(</span><span class="nx">b</span><span class="p">.</span><span class="nx">root</span><span class="p">);</span>
-    <span class="nx">b</span><span class="p">.</span><span class="nx">root</span><span class="p">.</span><span class="nx">clipTo</span><span class="p">(</span><span class="nx">a</span><span class="p">.</span><span class="nx">root</span><span class="p">);</span>
-    <span class="nx">b</span><span class="p">.</span><span class="nx">root</span><span class="p">.</span><span class="nx">invert</span><span class="p">();</span>
-    <span class="nx">b</span><span class="p">.</span><span class="nx">root</span><span class="p">.</span><span class="nx">clipTo</span><span class="p">(</span><span class="nx">a</span><span class="p">.</span><span class="nx">root</span><span class="p">);</span>
-    <span class="nx">b</span><span class="p">.</span><span class="nx">root</span><span class="p">.</span><span class="nx">invert</span><span class="p">();</span>
-    <span class="nx">a</span><span class="p">.</span><span class="nx">root</span><span class="p">.</span><span class="nx">build</span><span class="p">(</span><span class="nx">b</span><span class="p">.</span><span class="nx">root</span><span class="p">.</span><span class="nx">allPolygons</span><span class="p">());</span>
-    <span class="k">return</span> <span class="nx">a</span><span class="p">;</span>
+</code></pre>             </td>             <td class="code">               <div class="highlight"><pre>  <span class="nx">union</span><span class="o">:</span> <span class="kd">function</span><span class="p">(</span><span class="nx">csg</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kd">var</span> <span class="nx">a</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">CSG</span><span class="p">.</span><span class="nx">Node</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">clone</span><span class="p">().</span><span class="nx">polygons</span><span class="p">);</span>
+    <span class="kd">var</span> <span class="nx">b</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">CSG</span><span class="p">.</span><span class="nx">Node</span><span class="p">(</span><span class="nx">csg</span><span class="p">.</span><span class="nx">clone</span><span class="p">().</span><span class="nx">polygons</span><span class="p">);</span>
+    <span class="nx">a</span><span class="p">.</span><span class="nx">clipTo</span><span class="p">(</span><span class="nx">b</span><span class="p">);</span>
+    <span class="nx">b</span><span class="p">.</span><span class="nx">clipTo</span><span class="p">(</span><span class="nx">a</span><span class="p">);</span>
+    <span class="nx">b</span><span class="p">.</span><span class="nx">invert</span><span class="p">();</span>
+    <span class="nx">b</span><span class="p">.</span><span class="nx">clipTo</span><span class="p">(</span><span class="nx">a</span><span class="p">);</span>
+    <span class="nx">b</span><span class="p">.</span><span class="nx">invert</span><span class="p">();</span>
+    <span class="nx">a</span><span class="p">.</span><span class="nx">build</span><span class="p">(</span><span class="nx">b</span><span class="p">.</span><span class="nx">allPolygons</span><span class="p">());</span>
+    <span class="k">return</span> <span class="nx">CSG</span><span class="p">.</span><span class="nx">fromPolygons</span><span class="p">(</span><span class="nx">a</span><span class="p">.</span><span class="nx">allPolygons</span><span class="p">());</span>
   <span class="p">},</span></pre></div>             </td>           </tr>                               <tr id="section-6">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-6">&#182;</a>               </div>               <p>Return a new CSG solid representing space in this solid but not in the
-solid <code>bsp</code>. Neither this solid nor the solid <code>bsp</code> are modified.</p>
+solid <code>csg</code>. Neither this solid nor the solid <code>csg</code> are modified.</p>
 
 <pre><code>A.subtract(B)
 
@@ -97,19 +98,20 @@ solid <code>bsp</code>. Neither this solid nor the solid <code>bsp</code> are mo
      |   B   |
      |       |
      +-------+
-</code></pre>             </td>             <td class="code">               <div class="highlight"><pre>  <span class="nx">subtract</span><span class="o">:</span> <span class="kd">function</span><span class="p">(</span><span class="nx">bsp</span><span class="p">)</span> <span class="p">{</span>
-    <span class="kd">var</span> <span class="nx">a</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">clone</span><span class="p">(),</span> <span class="nx">b</span> <span class="o">=</span> <span class="nx">bsp</span><span class="p">.</span><span class="nx">clone</span><span class="p">();</span>
-    <span class="nx">a</span><span class="p">.</span><span class="nx">root</span><span class="p">.</span><span class="nx">invert</span><span class="p">();</span>
-    <span class="nx">a</span><span class="p">.</span><span class="nx">root</span><span class="p">.</span><span class="nx">clipTo</span><span class="p">(</span><span class="nx">b</span><span class="p">.</span><span class="nx">root</span><span class="p">);</span>
-    <span class="nx">b</span><span class="p">.</span><span class="nx">root</span><span class="p">.</span><span class="nx">clipTo</span><span class="p">(</span><span class="nx">a</span><span class="p">.</span><span class="nx">root</span><span class="p">);</span>
-    <span class="nx">b</span><span class="p">.</span><span class="nx">root</span><span class="p">.</span><span class="nx">invert</span><span class="p">();</span>
-    <span class="nx">b</span><span class="p">.</span><span class="nx">root</span><span class="p">.</span><span class="nx">clipTo</span><span class="p">(</span><span class="nx">a</span><span class="p">.</span><span class="nx">root</span><span class="p">);</span>
-    <span class="nx">b</span><span class="p">.</span><span class="nx">root</span><span class="p">.</span><span class="nx">invert</span><span class="p">();</span>
-    <span class="nx">a</span><span class="p">.</span><span class="nx">root</span><span class="p">.</span><span class="nx">build</span><span class="p">(</span><span class="nx">b</span><span class="p">.</span><span class="nx">root</span><span class="p">.</span><span class="nx">allPolygons</span><span class="p">());</span>
-    <span class="nx">a</span><span class="p">.</span><span class="nx">root</span><span class="p">.</span><span class="nx">invert</span><span class="p">();</span>
-    <span class="k">return</span> <span class="nx">a</span><span class="p">;</span>
+</code></pre>             </td>             <td class="code">               <div class="highlight"><pre>  <span class="nx">subtract</span><span class="o">:</span> <span class="kd">function</span><span class="p">(</span><span class="nx">csg</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kd">var</span> <span class="nx">a</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">CSG</span><span class="p">.</span><span class="nx">Node</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">clone</span><span class="p">().</span><span class="nx">polygons</span><span class="p">);</span>
+    <span class="kd">var</span> <span class="nx">b</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">CSG</span><span class="p">.</span><span class="nx">Node</span><span class="p">(</span><span class="nx">csg</span><span class="p">.</span><span class="nx">clone</span><span class="p">().</span><span class="nx">polygons</span><span class="p">);</span>
+    <span class="nx">a</span><span class="p">.</span><span class="nx">invert</span><span class="p">();</span>
+    <span class="nx">a</span><span class="p">.</span><span class="nx">clipTo</span><span class="p">(</span><span class="nx">b</span><span class="p">);</span>
+    <span class="nx">b</span><span class="p">.</span><span class="nx">clipTo</span><span class="p">(</span><span class="nx">a</span><span class="p">);</span>
+    <span class="nx">b</span><span class="p">.</span><span class="nx">invert</span><span class="p">();</span>
+    <span class="nx">b</span><span class="p">.</span><span class="nx">clipTo</span><span class="p">(</span><span class="nx">a</span><span class="p">);</span>
+    <span class="nx">b</span><span class="p">.</span><span class="nx">invert</span><span class="p">();</span>
+    <span class="nx">a</span><span class="p">.</span><span class="nx">build</span><span class="p">(</span><span class="nx">b</span><span class="p">.</span><span class="nx">allPolygons</span><span class="p">());</span>
+    <span class="nx">a</span><span class="p">.</span><span class="nx">invert</span><span class="p">();</span>
+    <span class="k">return</span> <span class="nx">CSG</span><span class="p">.</span><span class="nx">fromPolygons</span><span class="p">(</span><span class="nx">a</span><span class="p">.</span><span class="nx">allPolygons</span><span class="p">());</span>
   <span class="p">},</span></pre></div>             </td>           </tr>                               <tr id="section-7">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-7">&#182;</a>               </div>               <p>Return a new CSG solid representing space both this solid and in the
-solid <code>bsp</code>. Neither this solid nor the solid <code>bsp</code> are modified.</p>
+solid <code>csg</code>. Neither this solid nor the solid <code>csg</code> are modified.</p>
 
 <pre><code>A.intersect(B)
 
@@ -121,21 +123,22 @@ solid <code>bsp</code>. Neither this solid nor the solid <code>bsp</code> are mo
      |   B   |
      |       |
      +-------+
-</code></pre>             </td>             <td class="code">               <div class="highlight"><pre>  <span class="nx">intersect</span><span class="o">:</span> <span class="kd">function</span><span class="p">(</span><span class="nx">bsp</span><span class="p">)</span> <span class="p">{</span>
-    <span class="kd">var</span> <span class="nx">a</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">clone</span><span class="p">(),</span> <span class="nx">b</span> <span class="o">=</span> <span class="nx">bsp</span><span class="p">.</span><span class="nx">clone</span><span class="p">();</span>
-    <span class="nx">a</span><span class="p">.</span><span class="nx">root</span><span class="p">.</span><span class="nx">invert</span><span class="p">();</span>
-    <span class="nx">b</span><span class="p">.</span><span class="nx">root</span><span class="p">.</span><span class="nx">clipTo</span><span class="p">(</span><span class="nx">a</span><span class="p">.</span><span class="nx">root</span><span class="p">);</span>
-    <span class="nx">b</span><span class="p">.</span><span class="nx">root</span><span class="p">.</span><span class="nx">invert</span><span class="p">();</span>
-    <span class="nx">a</span><span class="p">.</span><span class="nx">root</span><span class="p">.</span><span class="nx">clipTo</span><span class="p">(</span><span class="nx">b</span><span class="p">.</span><span class="nx">root</span><span class="p">);</span>
-    <span class="nx">b</span><span class="p">.</span><span class="nx">root</span><span class="p">.</span><span class="nx">clipTo</span><span class="p">(</span><span class="nx">a</span><span class="p">.</span><span class="nx">root</span><span class="p">);</span>
-    <span class="nx">a</span><span class="p">.</span><span class="nx">root</span><span class="p">.</span><span class="nx">build</span><span class="p">(</span><span class="nx">b</span><span class="p">.</span><span class="nx">root</span><span class="p">.</span><span class="nx">allPolygons</span><span class="p">());</span>
-    <span class="nx">a</span><span class="p">.</span><span class="nx">root</span><span class="p">.</span><span class="nx">invert</span><span class="p">();</span>
-    <span class="k">return</span> <span class="nx">a</span><span class="p">;</span>
+</code></pre>             </td>             <td class="code">               <div class="highlight"><pre>  <span class="nx">intersect</span><span class="o">:</span> <span class="kd">function</span><span class="p">(</span><span class="nx">csg</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kd">var</span> <span class="nx">a</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">CSG</span><span class="p">.</span><span class="nx">Node</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">clone</span><span class="p">().</span><span class="nx">polygons</span><span class="p">);</span>
+    <span class="kd">var</span> <span class="nx">b</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">CSG</span><span class="p">.</span><span class="nx">Node</span><span class="p">(</span><span class="nx">csg</span><span class="p">.</span><span class="nx">clone</span><span class="p">().</span><span class="nx">polygons</span><span class="p">);</span>
+    <span class="nx">a</span><span class="p">.</span><span class="nx">invert</span><span class="p">();</span>
+    <span class="nx">b</span><span class="p">.</span><span class="nx">clipTo</span><span class="p">(</span><span class="nx">a</span><span class="p">);</span>
+    <span class="nx">b</span><span class="p">.</span><span class="nx">invert</span><span class="p">();</span>
+    <span class="nx">a</span><span class="p">.</span><span class="nx">clipTo</span><span class="p">(</span><span class="nx">b</span><span class="p">);</span>
+    <span class="nx">b</span><span class="p">.</span><span class="nx">clipTo</span><span class="p">(</span><span class="nx">a</span><span class="p">);</span>
+    <span class="nx">a</span><span class="p">.</span><span class="nx">build</span><span class="p">(</span><span class="nx">b</span><span class="p">.</span><span class="nx">allPolygons</span><span class="p">());</span>
+    <span class="nx">a</span><span class="p">.</span><span class="nx">invert</span><span class="p">();</span>
+    <span class="k">return</span> <span class="nx">CSG</span><span class="p">.</span><span class="nx">fromPolygons</span><span class="p">(</span><span class="nx">a</span><span class="p">.</span><span class="nx">allPolygons</span><span class="p">());</span>
   <span class="p">},</span></pre></div>             </td>           </tr>                               <tr id="section-8">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-8">&#182;</a>               </div>               <p>Return a new CSG solid with solid and empty space switched. This solid is
 not modified.</p>             </td>             <td class="code">               <div class="highlight"><pre>  <span class="nx">inverse</span><span class="o">:</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
-    <span class="kd">var</span> <span class="nx">bsp</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">clone</span><span class="p">();</span>
-    <span class="nx">bsp</span><span class="p">.</span><span class="nx">root</span><span class="p">.</span><span class="nx">invert</span><span class="p">();</span>
-    <span class="k">return</span> <span class="nx">bsp</span><span class="p">;</span>
+    <span class="kd">var</span> <span class="nx">csg</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">clone</span><span class="p">();</span>
+    <span class="nx">csg</span><span class="p">.</span><span class="nx">polygons</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">p</span><span class="p">)</span> <span class="p">{</span> <span class="nx">p</span><span class="p">.</span><span class="nx">flip</span><span class="p">();</span> <span class="p">});</span>
+    <span class="k">return</span> <span class="nx">csg</span><span class="p">;</span>
   <span class="p">}</span>
 <span class="p">};</span></pre></div>             </td>           </tr>                               <tr id="section-9">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-9">&#182;</a>               </div>               <p>Construct an axis-aligned solid cube. Optional parameters are <code>center</code> and
 <code>radius</code>, which default to <code>[0, 0, 0]</code> and <code>1</code>.</p>
@@ -243,8 +246,7 @@ longitude and latitude directions.</p>
   <span class="k">for</span> <span class="p">(</span><span class="kd">var</span> <span class="nx">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="o">&lt;</span> <span class="nx">slices</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
     <span class="kd">var</span> <span class="nx">t0</span> <span class="o">=</span> <span class="nx">i</span> <span class="o">/</span> <span class="nx">slices</span><span class="p">,</span> <span class="nx">t1</span> <span class="o">=</span> <span class="p">(</span><span class="nx">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="nx">slices</span><span class="p">;</span>
     <span class="nx">polygons</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="k">new</span> <span class="nx">CSG</span><span class="p">.</span><span class="nx">Polygon</span><span class="p">([</span><span class="nx">start</span><span class="p">,</span> <span class="nx">point</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nx">t0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="nx">point</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nx">t1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)]));</span>
-    <span class="nx">polygons</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="k">new</span> <span class="nx">CSG</span><span class="p">.</span><span class="nx">Polygon</span><span class="p">([</span><span class="nx">point</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nx">t1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="nx">point</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nx">t0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="nx">point</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nx">t0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]));</span>
-    <span class="nx">polygons</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="k">new</span> <span class="nx">CSG</span><span class="p">.</span><span class="nx">Polygon</span><span class="p">([</span><span class="nx">point</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nx">t1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="nx">point</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nx">t0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="nx">point</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nx">t1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]));</span>
+    <span class="nx">polygons</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="k">new</span> <span class="nx">CSG</span><span class="p">.</span><span class="nx">Polygon</span><span class="p">([</span><span class="nx">point</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nx">t1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="nx">point</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nx">t0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="nx">point</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nx">t0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="nx">point</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nx">t1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]));</span>
     <span class="nx">polygons</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="k">new</span> <span class="nx">CSG</span><span class="p">.</span><span class="nx">Polygon</span><span class="p">([</span><span class="nx">end</span><span class="p">,</span> <span class="nx">point</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nx">t1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="nx">point</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nx">t0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]));</span>
   <span class="p">}</span>
   <span class="k">return</span> <span class="nx">CSG</span><span class="p">.</span><span class="nx">fromPolygons</span><span class="p">(</span><span class="nx">polygons</span><span class="p">);</span>
@@ -436,11 +438,12 @@ This can be used to define per-polygon properties (such as surface color).</p>  
 by picking a polygon to split along. That polygon (and all other coplanar
 polygons) are added directly to that node and the other polygons are added to
 the front and/or back subtrees. This is not a leafy BSP tree since there is
-no distinction between internal and leaf nodes.</p>             </td>             <td class="code">               <div class="highlight"><pre><span class="nx">CSG</span><span class="p">.</span><span class="nx">Node</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+no distinction between internal and leaf nodes.</p>             </td>             <td class="code">               <div class="highlight"><pre><span class="nx">CSG</span><span class="p">.</span><span class="nx">Node</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">polygons</span><span class="p">)</span> <span class="p">{</span>
   <span class="k">this</span><span class="p">.</span><span class="nx">plane</span> <span class="o">=</span> <span class="kc">null</span><span class="p">;</span>
   <span class="k">this</span><span class="p">.</span><span class="nx">front</span> <span class="o">=</span> <span class="kc">null</span><span class="p">;</span>
   <span class="k">this</span><span class="p">.</span><span class="nx">back</span> <span class="o">=</span> <span class="kc">null</span><span class="p">;</span>
   <span class="k">this</span><span class="p">.</span><span class="nx">polygons</span> <span class="o">=</span> <span class="p">[];</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">polygons</span><span class="p">)</span> <span class="k">this</span><span class="p">.</span><span class="nx">build</span><span class="p">(</span><span class="nx">polygons</span><span class="p">);</span>
 <span class="p">};</span>
 
 <span class="nx">CSG</span><span class="p">.</span><span class="nx">Node</span><span class="p">.</span><span class="nx">prototype</span> <span class="o">=</span> <span class="p">{</span>
@@ -463,6 +466,7 @@ no distinction between internal and leaf nodes.</p>             </td>           
     <span class="k">this</span><span class="p">.</span><span class="nx">back</span> <span class="o">=</span> <span class="nx">temp</span><span class="p">;</span>
   <span class="p">},</span></pre></div>             </td>           </tr>                               <tr id="section-29">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-29">&#182;</a>               </div>               <p>Recursively remove all polygons in <code>polygons</code> that are inside this BSP
 tree.</p>             </td>             <td class="code">               <div class="highlight"><pre>  <span class="nx">clipPolygons</span><span class="o">:</span> <span class="kd">function</span><span class="p">(</span><span class="nx">polygons</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="k">this</span><span class="p">.</span><span class="nx">plane</span><span class="p">)</span> <span class="k">return</span> <span class="nx">polygons</span><span class="p">.</span><span class="nx">slice</span><span class="p">();</span>
     <span class="kd">var</span> <span class="nx">front</span> <span class="o">=</span> <span class="p">[],</span> <span class="nx">back</span> <span class="o">=</span> <span class="p">[];</span>
     <span class="k">for</span> <span class="p">(</span><span class="kd">var</span> <span class="nx">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="o">&lt;</span> <span class="nx">polygons</span><span class="p">.</span><span class="nx">length</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
       <span class="k">this</span><span class="p">.</span><span class="nx">plane</span><span class="p">.</span><span class="nx">splitPolygon</span><span class="p">(</span><span class="nx">polygons</span><span class="p">[</span><span class="nx">i</span><span class="p">],</span> <span class="nx">front</span><span class="p">,</span> <span class="nx">back</span><span class="p">,</span> <span class="nx">front</span><span class="p">,</span> <span class="nx">back</span><span class="p">);</span>
