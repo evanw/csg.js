@@ -160,8 +160,9 @@ CSG.prototype = {
   }
 };
 
-// Construct an axis-aligned solid cube. Optional parameters are `center` and
-// `radius`, which default to `[0, 0, 0]` and `1`.
+// Construct an axis-aligned solid cuboid. Optional parameters are `center` and
+// `radius`, which default to `[0, 0, 0]` and `[1, 1, 1]`. The radius can be
+// specified using a single number or a list of three numbers, one for each axis.
 // 
 // Example code:
 // 
@@ -172,7 +173,8 @@ CSG.prototype = {
 CSG.cube = function(options) {
   options = options || {};
   var c = new CSG.Vector(options.center || [0, 0, 0]);
-  var r = options.radius || 1;
+  var r = !options.radius ? [1, 1, 1] : options.radius.length ?
+           options.radius : [options.radius, options.radius, options.radius];
   return CSG.fromPolygons([
     [[0, 4, 6, 2], [-1, 0, 0]],
     [[1, 3, 7, 5], [+1, 0, 0]],
@@ -183,9 +185,9 @@ CSG.cube = function(options) {
   ].map(function(info) {
     return new CSG.Polygon(info[0].map(function(i) {
       var pos = new CSG.Vector(
-        c.x + r * (2 * !!(i & 1) - 1),
-        c.y + r * (2 * !!(i & 2) - 1),
-        c.z + r * (2 * !!(i & 4) - 1)
+        c.x + r[0] * (2 * !!(i & 1) - 1),
+        c.y + r[1] * (2 * !!(i & 2) - 1),
+        c.z + r[2] * (2 * !!(i & 4) - 1)
       );
       return new CSG.Vertex(pos, new CSG.Vector(info[1]));
     }));
