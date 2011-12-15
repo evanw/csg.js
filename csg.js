@@ -193,7 +193,8 @@ CSG.cube = function(options) {
 };
 
 // Construct an axis-aligned solid cuboid. Optional parameters are `center` and
-// `radius`, which default to `[0, 0, 0]` and `[1, 1, 1]`.
+// `radius`, which default to `[0, 0, 0]` and `[1, 1, 1]`. The radius can be
+// specified using a single number or a list of three numbers, one for each axis.
 //
 // Example code:
 //
@@ -201,7 +202,7 @@ CSG.cube = function(options) {
 //       center: [0, 0, 0],
 //       radius: 1
 //     });
-CSG.cuboid = function(options) {
+CSG.cube = function(options) {
   options = options || {};
   var c = new CSG.Vector(options.center || [0, 0, 0]);
   var r = ( !options.radius ) ?
