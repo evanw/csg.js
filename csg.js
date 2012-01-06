@@ -184,6 +184,13 @@ CSG.prototype = {
   
   rotateZ: function(deg) {
     return this.transform(CSG.Matrix4x4.rotationZ(deg));
+  },
+  
+  toStlString: function() {
+    var result="solid csg.js\n";
+    this.polygons.map(function(p){ result += p.toStlString(); });
+    result += "endsolid csg.js\n";
+    return result;
   }
 };
 
@@ -384,6 +391,10 @@ CSG.Vector.prototype = {
   // Returns a new CSG.Vector
   multiply4x4: function(matrix4x4) {
     return matrix4x4.rightMultiply1x3Vector(this);
+  },
+  
+  toStlString: function() {
+    return this.x+" "+this.y+" "+this.z;
   }
 };
 
@@ -430,6 +441,10 @@ CSG.Vertex.prototype = {
     var newPosPlusNormal = posPlusNormal.multiply4x4(matrix4x4);
     var newnormal = newPosPlusNormal.minus(newpos).unit();
     return new CSG.Vertex(newpos, newnormal);  
+  },
+  
+  toStlString: function() {
+    return "vertex "+this.pos.toStlString()+"\n";
   }
 };
 
@@ -548,6 +563,25 @@ CSG.Polygon.prototype = {
   transform: function(matrix4x4) {
     var newvertices = this.vertices.map(function(v) { return v.transform(matrix4x4); } );
     return new CSG.Polygon(newvertices, this.shared);
+  },
+  
+  toStlString: function() {
+    var result="";
+    if(this.vertices.length >= 3) // should be!
+    {
+      // SLT requires triangular polygons. If our polygon has more vertices, create
+      // multiple triangles:
+      var firstVertexStl = this.vertices[0].toStlString();
+      for(var i=0; i < this.vertices.length-2; i++)
+      {
+        result += "facet normal "+this.plane.normal.toStlString()+"\nouter loop\n";
+        result += firstVertexStl;
+        result += this.vertices[i+1].toStlString();
+        result += this.vertices[i+2].toStlString();
+        result += "endloop\nendfacet\n";    
+      } 
+    }
+    return result;
   }
 };
 
