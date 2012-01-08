@@ -121,10 +121,27 @@ b.setColor(0, 0.5, 1);
 c.setColor(0, 1, 0);
 return a.union(b).union(c);</pre>
 
+  <h2>2d shapes</h2>
+  <p>CSG.Polygon2D holds a 2D shape. 2D shapes can be rotated, scaled and translated. A 2D shape can be extruded into a 3D CSG object:</p>
+  <table>
+    <tr>
+      <td><div id="12" class="viewer" style="background-position:-403px -1px;width:400px;height:400px;"></div></td>
+    </tr>
+  </table>
+  <p>Code for the above:</p>
+  <pre>var shape2d=new CSG.Polygon2D([[0,0], [5,0], [3,5], [0,5]]);
+shape2d=shape2d.translate([-2, -2]);
+shape2d=shape2d.rotate(20);
+shape2d=shape2d.scale([0.2, 0.2]);
+var extruded=shape2d.extrude({offset: [0.5, 0, 2], twistangle: 180, twiststeps: 100});
+extruded.setColor(1, 1, 0);
+return extruded;
+</pre>
+
   <h2>Try it!</h2>
   <table>
     <tr>
-      <td><div id="12" class="viewer" style="background-image:none;width:400px;height:400px;"></div></td>
+      <td><div id="13" class="viewer" style="background-image:none;width:400px;height:400px;"></div></td>
     </tr>
   </table>
   <p>Edit the code below to construct your own solids. A browser with WebGL is required to view the results. The <code>setColor(r, g, b)</code> function sets the color of the solid using values between 0 and 1 (just for display, not part of csg.js):</p>
@@ -192,6 +209,14 @@ b.setColor(0, 0.5, 1);
 c.setColor(0, 1, 0);
 addViewer(new Viewer(a.union(b).union(c), 400, 400, 5));
 
+// 2D extrusion example:
+var shape2d=new CSG.Polygon2D([[0,0], [5,0], [3,5], [0,5]]);
+shape2d=shape2d.translate([-2, -2]);
+shape2d=shape2d.rotate(20);
+shape2d=shape2d.scale([0.2, 0.2]);
+var extruded=shape2d.extrude({offset: [0.5, 0, 2], twistangle: 180, twiststeps: 100});
+extruded.setColor(1, 1, 0);
+addViewer(new Viewer(extruded, 400, 400, 5));
 
 // Set up interactive demo
 var tryit = document.getElementById('tryit');
