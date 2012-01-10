@@ -86,14 +86,14 @@ CSG.prototype = {
   //          +-------+            +-------+
   // 
   union: function(csg) {
-    var a = new CSG.Node(this.clone().polygons);
-    var b = new CSG.Node(csg.clone().polygons);
+    var a = new CSG.Tree(this.polygons);
+    var b = new CSG.Tree(csg.polygons);
     a.clipTo(b);
     b.clipTo(a);
     b.invert();
     b.clipTo(a);
     b.invert();
-    a.build(b.allPolygons());
+    a.addPolygons(b.allPolygons());
     return CSG.fromPolygons(a.allPolygons());
   },
 
@@ -112,15 +112,15 @@ CSG.prototype = {
   //          +-------+
   // 
   subtract: function(csg) {
-    var a = new CSG.Node(this.clone().polygons);
-    var b = new CSG.Node(csg.clone().polygons);
+    var a = new CSG.Tree(this.polygons);
+    var b = new CSG.Tree(csg.polygons);
     a.invert();
     a.clipTo(b);
     b.clipTo(a);
     b.invert();
     b.clipTo(a);
     b.invert();
-    a.build(b.allPolygons());
+    a.addPolygons(b.allPolygons());
     a.invert();
     return CSG.fromPolygons(a.allPolygons());
   },
@@ -140,14 +140,14 @@ CSG.prototype = {
   //          +-------+
   // 
   intersect: function(csg) {
-    var a = new CSG.Node(this.clone().polygons);
-    var b = new CSG.Node(csg.clone().polygons);
+    var a = new CSG.Tree(this.polygons);
+    var b = new CSG.Tree(csg.polygons);
     a.invert();
     b.clipTo(a);
     b.invert();
     a.clipTo(b);
     b.clipTo(a);
-    a.build(b.allPolygons());
+    a.addPolygons(b.allPolygons());
     a.invert();
     return CSG.fromPolygons(a.allPolygons());
   },
@@ -528,8 +528,8 @@ CSG.Plane.prototype = {
             b.push(v.clone());
           }
         }
-        if (f.length >= 3) front.push(new CSG.Polygon(f, polygon.shared));
-        if (b.length >= 3) back.push(new CSG.Polygon(b, polygon.shared));
+        if (f.length >= 3) front.push(new CSG.Polygon(f, polygon.shared));//, polygon.plane.clone()));
+        if (b.length >= 3) back.push(new CSG.Polygon(b, polygon.shared));//, polygon.plane.clone()));
         break;
     }
   }
@@ -554,22 +554,6 @@ CSG.Polygon = function(vertices, shared, plane) {
   var _DEBUG=true;
   this.vertices = vertices;
   var numvertices = vertices.length;
-  
-  if(_DEBUG)
-  {
-    // check for duplicate points:
-    if(numvertices < 3) throw new Error("need 3 vertices");  
-    for(var i=0; i < numvertices; i++)
-    {
-      for(var j=i+1; j < numvertices; j++)
-      {
-        if(vertices[i].pos.equals(vertices[j].pos))
-        {
-          throw new Error("duplicate points");
-        }
-      }
-    }
-  }
 
   this.shared = shared;
   if(arguments.length >= 3)
@@ -583,26 +567,31 @@ CSG.Polygon = function(vertices, shared, plane) {
   
   if(_DEBUG)
   {
-    // check whether convex:
-    var prevprevpos=vertices[numvertices-2].pos;
-    var prevpos=vertices[numvertices-1].pos;
-    for(var i=0; i < numvertices; i++)
-    {
-      var pos=vertices[i].pos;
-      if(!CSG.Polygon.isConvex(prevprevpos, prevpos, pos, this.plane.normal))
-      { 
-        throw new Error("Not convex!");
-      }
-      prevprevpos=prevpos;
-      prevpos=pos;
-    }
+    this.checkIfConvex();
   }
 };
 
 CSG.Polygon.prototype = {
   clone: function() {
     var vertices = this.vertices.map(function(v) { return v.clone(); });
-    return new CSG.Polygon(vertices, this.shared);
+    return new CSG.Polygon(vertices, this.shared, this.plane.clone() );
+  },
+  
+  // check whether the polygon is convex (it should be, otherwise we will get unexpected results)
+  checkIfConvex: function() {
+    var numvertices = this.vertices.length;
+    var prevprevpos=this.vertices[numvertices-2].pos;
+    var prevpos=this.vertices[numvertices-1].pos;
+    for(var i=0; i < numvertices; i++)
+    {
+      var pos=this.vertices[i].pos;
+      if(!CSG.Polygon.isConvexPoint(prevprevpos, prevpos, pos, this.plane.normal))
+      {
+        throw new Error("Not convex!");
+      }
+      prevprevpos=prevpos;
+      prevpos=pos;
+    }
   },
 
   flip: function() {
@@ -620,7 +609,7 @@ CSG.Polygon.prototype = {
     var result="";
     if(this.vertices.length >= 3) // should be!
     {
-      // SLT requires triangular polygons. If our polygon has more vertices, create
+      // STL requires triangular polygons. If our polygon has more vertices, create
       // multiple triangles:
       var firstVertexStl = this.vertices[0].toStlString();
       for(var i=0; i < this.vertices.length-2; i++)
@@ -658,112 +647,208 @@ CSG.Polygon.createFromPoints = function(points, shared) {
 // calculate whether three points form a convex corner 
 //  prevpoint, point, nextpoint: the 3 coordinates (CSG.Vector instances)
 //  normal: the normal vector of the plane
-CSG.Polygon.isConvex = function(prevpoint, point, nextpoint, normal) {
+CSG.Polygon.isConvexPoint = function(prevpoint, point, nextpoint, normal) {
   var crossproduct=point.minus(prevpoint).cross(nextpoint.minus(point));
   var crossdotnormal=crossproduct.dot(normal);
   return (crossdotnormal >= 0);
 };
 
-// Create convex polygons from the given vertices
-// If the vertices form a non-convex polygon, the polygon is split into multiple convex polygons
-// Vertices may not cross each other.
-CSG.Polygon.createConvexPolygonsFromVertices = function(vertices, shared, plane) {
-  // start with a single polygon:
-  var verticesperpolygon = [];
-  verticesperpolygon.push(vertices);
-  var polygonindex = 0;
-  var numpolygons = 1;
-  var planenormal = plane.normal;
-  while(polygonindex < numpolygons)
-  {
-    var polygonvertices = verticesperpolygon[polygonindex];
-    var numvertices = polygonvertices.length;
-    if(numvertices < 3) throw new Error("need 3 vertices");
-    var pointindex = 0;
-    var prevpointindex = numvertices-1;
-    var nextpointindex = 1;
-    while(true)
-    {
-      if(pointindex >= numvertices) break;
-      var nextpoint=polygonvertices[nextpointindex].pos;
-      var point=polygonvertices[pointindex].pos;
-      var prevpoint=polygonvertices[prevpointindex].pos;
-      if(!CSG.Polygon.isConvex(prevpoint,point,nextpoint,planenormal))
-      {
-        // concave angle is impossible with a triangle:
-        if(numvertices < 4) throw new Error("Assertion failed");
-        // we can split towards vertex[point+2] .. vertex[point-2]
-        // just try them from left to right.
-        var testsplitindex = pointindex+2;
-//        var leftbound = pointindex+2;
-//        var rightbound = pointindex-2+numvertices;
-        while(true)
-        {
-          if(testsplitindex >= numvertices) testsplitindex -= numvertices;
-          if(testsplitindex == prevpointindex) throw new Error("Assertion failed"); // we've tried all possible points! Cannot happen. 
-          var testpoint=polygonvertices[testsplitindex].pos;
-          if(CSG.Polygon.isConvex(testpoint,point,nextpoint,planenormal)
-            && CSG.Polygon.isConvex(prevpoint,point,testpoint,planenormal) )
-          {
-            // yes this is a suitable split: we will get two convex angles
-            var newpolygonvertices = [];
-            newpolygonvertices.push(polygonvertices[testsplitindex].clone());
-            if(testsplitindex >= pointindex)
-            {
-              var numafter = numvertices-testsplitindex-1;
-              if(numafter > 0)
-              {
-                newpolygonvertices = newpolygonvertices.concat(polygonvertices.splice(testsplitindex+1, numafter));
-              }
-              if(pointindex > 0)
-              {
-                newpolygonvertices = newpolygonvertices.concat(polygonvertices.splice(0, pointindex));
-              }
-              numvertices = testsplitindex - pointindex + 1; 
-              pointindex=0;
-              prevpointindex=-1;
-              nextpointindex=1;
-            }
-            else
-            {
-              var numtoextract = pointindex - testsplitindex - 1;
-              if(numtoextract > 0) // should be 
-              {
-                newpolygonvertices = newpolygonvertices.concat(polygonvertices.splice(testsplitindex+1, numtoextract));
-                pointindex -= numtoextract;
-                prevpointindex = pointindex-1;
-                nextpointindex = pointindex+1;
-                numvertices -= numtoextract;              
-              }
-            }
-            if(numvertices != polygonvertices.length) throw new Error("Assertion failed");
-            newpolygonvertices.push(polygonvertices[pointindex].clone());
-            verticesperpolygon.push(newpolygonvertices);
-            numpolygons++;
-            break;
-          }
-          testsplitindex++; 
-        } // while true
-      }
-      pointindex++;
-      prevpointindex++;
-      if(prevpointindex >= numvertices) prevpointindex -= numvertices;      
-      nextpointindex++;
-      if(nextpointindex >= numvertices) nextpointindex -= numvertices;      
-    } // while(true)
-    ++polygonindex;
-  }  //while(polygonindex < numpolygons)
+// # class PolygonTreeNode
+
+// constructor creates the root node:
+CSG.PolygonTreeNode = function() {
+  this.parent = null;
+  this.children = [];
+  this.polygon = null;
+};
+
+CSG.PolygonTreeNode.prototype = {
+  // add child to a node
+  // this should be called whenever the polygon is split
+  // a child should be created for every fragment of the split polygon 
+  // returns the newly created child
+  addChild: function(polygon) {
+    var newchild = new CSG.PolygonTreeNode();
+    newchild.parent = this;
+    newchild.polygon = polygon;
+    this.children.push(newchild);
+    return newchild;
+  },
   
-  // create the polygons:
-  var polygons = [];
-  verticesperpolygon.map(function(vertices) {
-    var polygon = new CSG.Polygon(vertices, shared, plane.clone());
-    polygons.push(polygon);
-  });
-  return polygons;
+  // remove a node
+  // - the siblings become toplevel nodes
+  // - the parent is removed recursively
+  remove: function() {
+    if(this.isRootNode()) throw new Error("Assertion failed");  // can't remove root node
+    if(this.children.length) throw new Error("Assertion failed"); 
+    var newtoplevelnodes = [];
+    var parent = this.parent;
+    this.polygon = null;
+    this.parent = null;    
+    parent.removeChild(this, newtoplevelnodes);
+  },
+  
+  removeChild: function(child, newtoplevelnodes) {
+    // remove the child: 
+    var i=this.children.indexOf(child);
+    if(i < 0) throw new Error("Assertion failed");
+    if(child.parent) throw new Error("Assertion failed"); 
+    this.children.splice(i,1);
+    if(this.isRootNode())
+    {
+      // it's the root node
+      // add newtoplevelnodes to the children
+      var _this = this;
+      newtoplevelnodes.map(function(child) {
+        child.parent = _this;
+        _this.children.push(child);
+      });
+    }
+    else    
+    {
+      // it's a regular node
+      // move the remaining children to newtoplevelnodes
+      this.children.map(function(achild) {
+        newtoplevelnodes.push(achild);
+      });
+      this.children = [];
+      // and commit suicide:
+      var parent = this.parent;
+      this.polygon = null;
+      this.parent = null;    
+      parent.removeChild(this, newtoplevelnodes);    
+    }
+  },
+  
+  getPolygon: function () {
+    if(this.isRootNode()) throw new Error("Assertion failed");  // root node doesn't have a polygon
+    return this.polygon;
+  },
+
+  allPolygons: function () {
+    if(!this.isRootNode()) throw new Error("Assertion failed");  // can only call this on the root node
+    var polygons = [];
+    this.children.map(function(child) {
+      polygons.push(child.polygon);
+    });
+    return polygons;
+  },
+  
+  isRootNode: function() {
+    return !this.parent;
+  },  
+
+  // invert all polygons in the tree. Call on the root node
+  invert: function() {
+    if(!this.isRootNode()) throw new Error("Assertion failed");  // can only call this on the root node
+    this.invertSub();
+  },
+
+  invertSub: function() {
+    if(this.polygon)
+    {
+      this.polygon.flip();
+    }
+    this.children.map(function(child) {
+      child.invertSub();
+    });
+  },
+  
+  // split the node by a plane; add the resulting nodes to the frontnodes and backnodes array  
+  // If the plane doesn't intersect the polygon, the 'this' object is added to one of the arrays
+  // If the plane does intersect the polygon, two new child nodes are created for the front and back fragments,
+  //  and added to both arrays. 
+  splitByPlane: function(plane, coplanarfrontnodes, coplanarbacknodes, frontnodes, backnodes) {
+    if(this.children.length > 0)
+    {
+      // if we have children, split the children
+      this.children.map(function(child) {
+        child.splitByPlane(plane, coplanarfrontnodes, coplanarbacknodes, frontnodes, backnodes);
+      });
+    }
+    else
+    {
+      // no children. Split the polygon:
+      if(this.polygon)
+      {
+        var coplanarfrontpolygons = [], coplanarbackpolygons = [];
+        var frontpolygons = [], backpolygons = [];
+        plane.splitPolygon(this.polygon, coplanarfrontpolygons, coplanarbackpolygons, frontpolygons, backpolygons);
+        var numpolygons=coplanarfrontpolygons.length + coplanarbackpolygons.length + frontpolygons.length + backpolygons.length; 
+        if(numpolygons > 2) throw new Error("Assertion failed");
+        if(numpolygons == 1)
+        {
+          // the polygon was not split:
+          if(frontpolygons.length == 1)
+          {
+            frontnodes.push(this);
+          }
+          else if(backpolygons.length == 1)
+          {
+            backnodes.push(this);
+          }
+          else if(coplanarfrontpolygons.length == 1)
+          {
+            coplanarfrontnodes.push(this);
+          }
+          else // if(coplanarbackpolygons.length == 1)
+          {
+            coplanarbacknodes.push(this);
+          }
+        }
+        else if(numpolygons == 2)
+        {
+          // the polygon was split. Split our node by creating two children:
+          if(frontpolygons.length != 1) throw new Error("Assertion failed");
+          if(backpolygons.length != 1) throw new Error("Assertion failed");
+          var frontnode = this.addChild(frontpolygons[0].clone());
+          var backnode = this.addChild(backpolygons[0].clone());
+          frontnodes.push(frontnode);
+          backnodes.push(backnode);          
+        }
+      }
+    }
+  },
+
 };
 
 
+// # class Tree
+CSG.Tree = function(polygons) {
+  this.polygonTree = new CSG.PolygonTreeNode();
+  this.rootnode = new CSG.Node();
+  if (polygons) this.addPolygons(polygons);
+};
+
+CSG.Tree.prototype = {
+  invert: function() {
+    this.polygonTree.invert();
+    this.rootnode.invert();
+  },
+  
+  // Remove all polygons in this BSP tree that are inside the other BSP tree
+  // `tree`.
+  clipTo: function(tree) {
+    this.rootnode.clipTo(tree);
+  },
+
+  allPolygons: function() {
+    return this.polygonTree.allPolygons();
+  },
+
+  addPolygons: function(polygons) {
+//    polygons.map(this.addPolygon, this);
+    var _this = this;
+    polygons.map(function(p) {
+      _this.addPolygon(p.clone());
+    });
+  },
+
+  addPolygon: function(polygon) {
+    var polygontreenode=this.polygonTree.addChild(polygon);
+    this.rootnode.addPolygonTreeNode(polygontreenode);
+  },  
+};
 
 // # class Node
 
@@ -773,29 +858,16 @@ CSG.Polygon.createConvexPolygonsFromVertices = function(vertices, shared, plane)
 // the front and/or back subtrees. This is not a leafy BSP tree since there is
 // no distinction between internal and leaf nodes.
 
-CSG.Node = function(polygons) {
+CSG.Node = function() {
   this.plane = null;
   this.front = null;
   this.back = null;
-  this.polygons = [];
-  if (polygons) this.build(polygons);
+  this.polygontreenodes = [];
 };
 
 CSG.Node.prototype = {
-  clone: function() {
-    var node = new CSG.Node();
-    node.plane = this.plane && this.plane.clone();
-    node.front = this.front && this.front.clone();
-    node.back = this.back && this.back.clone();
-    node.polygons = this.polygons.map(function(p) { return p.clone(); });
-    return node;
-  },
-
   // Convert solid space to empty space and empty space to solid space.
   invert: function() {
-    for (var i = 0; i < this.polygons.length; i++) {
-      this.polygons[i].flip();
-    }
     this.plane.flip();
     if (this.front) this.front.invert();
     if (this.back) this.back.invert();
@@ -804,57 +876,77 @@ CSG.Node.prototype = {
     this.back = temp;
   },
 
-  // Recursively remove all polygons in `polygons` that are inside this BSP
-  // tree.
-  clipPolygons: function(polygons) {
-    if (!this.plane) return polygons.slice();
-    var front = [], back = [];
-    for (var i = 0; i < polygons.length; i++) {
-      this.plane.splitPolygon(polygons[i], front, back, front, back);
+  // clip polygontreenodes to our plane
+  // returns a new array of PolygonTreeNodes with the clipped polygons
+  // also removes all clipped PolygonTreeNodes, so the polygon tree is modified!
+  clipPolygons: function(polygontreenodes) {
+    var clippednodes;
+    if(this.plane)
+    {
+      var backnodes = [];
+      var frontnodes = [];
+      var plane = this.plane;
+      polygontreenodes.map(function(node) {
+        node.splitByPlane(plane, frontnodes, backnodes, frontnodes, backnodes);
+      });
+      var clippedfrontnodes = [];
+      var clippedbacknodes = [];
+      if(this.front)
+      {
+        clippedfrontnodes = this.front.clipPolygons(frontnodes);
+      }
+      if(this.back)
+      {
+        clippedbacknodes = this.back.clipPolygons(backnodes);
+      }
+      else
+      {
+        // there's nothing behind this plane. Delete the nodes behind this plane:
+        backnodes.map( function(node) {
+          node.remove();
+        });
+      }
+      clippednodes = clippedfrontnodes.concat(clippedbacknodes);
     }
-    if (this.front) front = this.front.clipPolygons(front);
-    if (this.back) back = this.back.clipPolygons(back);
-    else back = [];
-    return front.concat(back);
+    else
+    {
+      clippednodes=polygontreenodes.slice();
+    }
+    return clippednodes;
   },
 
   // Remove all polygons in this BSP tree that are inside the other BSP tree
-  // `bsp`.
-  clipTo: function(bsp) {
-    this.polygons = bsp.clipPolygons(this.polygons);
-    if (this.front) this.front.clipTo(bsp);
-    if (this.back) this.back.clipTo(bsp);
+  // `tree`.
+  clipTo: function(tree) {
+    var origpolygontreenodes = this.polygontreenodes;
+    var clippedtreenodes = tree.rootnode.clipPolygons(origpolygontreenodes);
+    this.polygontreenodes = clippedtreenodes;
+    if (this.front) this.front.clipTo(tree);
+    if (this.back) this.back.clipTo(tree);
   },
-
-  // Return a list of all polygons in this BSP tree.
-  allPolygons: function() {
-    var polygons = this.polygons.slice();
-    if (this.front) polygons = polygons.concat(this.front.allPolygons());
-    if (this.back) polygons = polygons.concat(this.back.allPolygons());
-    return polygons;
-  },
-
-  // Build a BSP tree out of `polygons`. When called on an existing tree, the
-  // new polygons are filtered down to the bottom of the tree and become new
-  // nodes there. Each set of polygons is partitioned using the first polygon
-  // (no heuristic is used to pick a good split).
-  build: function(polygons) {
-    if (!polygons.length) return;
-    if (!this.plane) this.plane = polygons[0].plane.clone();
-    var front = [], back = [];
-    for (var i = 0; i < polygons.length; i++) {
-      this.plane.splitPolygon(polygons[i], this.polygons, this.polygons, front, back);
+  
+  addPolygonTreeNode: function(polygontreenode) {
+    if(!this.plane)
+    {
+      this.plane = polygontreenode.getPolygon().plane.clone();
     }
-    if (front.length) {
+    var frontnodes = [];
+    var backnodes = [];
+    polygontreenode.splitByPlane(this.plane, this.polygontreenodes, this.polygontreenodes, frontnodes, backnodes);
+    if(frontnodes.length > 0)
+    {
       if (!this.front) this.front = new CSG.Node();
-      this.front.build(front);
+      this.front.addPolygonTreeNode(frontnodes[0]);
     }
-    if (back.length) {
+    if(backnodes.length > 0)
+    {
       if (!this.back) this.back = new CSG.Node();
-      this.back.build(back);
+      this.back.addPolygonTreeNode(backnodes[0]);
     }
-  }
+  },
 };
+
+//////////
 
 // # class Matrix4x4:
 // Represents a 4x4 matrix. Elements are specified in row order
@@ -1177,7 +1269,9 @@ CSG.Polygon2D.prototype = {
       var vec3d = p.toVector3D(z);      
       points3d.push(vec3d);
     });
-    return CSG.Polygon.createFromPoints(points3d, this.shared);
+    var polygon = CSG.Polygon.createFromPoints(points3d, this.shared);
+    polygon.checkIfConvex();
+    return polygon;
   },
   
   // extruded=shape2d.extrude({offset: [0,0,10], twistangle: 360, twiststeps: 100});
@@ -1296,6 +1390,10 @@ CSG.Polygon.prototype.translate = function(offset) {
   return this.transform(CSG.Matrix4x4.translation(offset));
 };
 
+// Expand the polygon with a certain radius
+// This extrudes the face of the polygon and adds rounded corners 
+// Returns a CSG object (not a polygon anymore!)
+// resolution: number of points per 360 degree for the rounded corners
 CSG.Polygon.prototype.expand = function(radius, resolution) {
   resolution=resolution || 8;
   var result=new CSG();
@@ -1316,10 +1414,12 @@ CSG.Polygon.prototype.expand = function(radius, resolution) {
   var extrudevector=this.plane.normal.unit().times(2*radius);
   var translatedpolygon = this.translate(extrudevector.times(-0.5));
   var extrudedface = translatedpolygon.extrude(extrudevector);
-  //result=result.union(extrudedface); 
+  result=result.union(extrudedface); 
   return result;
 };
 
+// Expand the solid
+// resolution: number of points per 360 degree for the rounded corners
 CSG.prototype.expand = function(radius, resolution) {
   var result=this.clone();
   this.polygons.map(function(p) {
@@ -1329,6 +1429,8 @@ CSG.prototype.expand = function(radius, resolution) {
   return result;
 };
 
+// Contract the solid
+// resolution: number of points per 360 degree for the rounded corners
 CSG.prototype.contract = function(radius, resolution) {
   var result=this.clone();
   this.polygons.map(function(p) {
@@ -1386,207 +1488,4 @@ CSG.roundedCube = function(cuberadius, roundradius, resolution) {
   }
   return result;
 }
-
-// Merge adjacent coplanar polygons into one large polygon
-CSG.mergeCoplanarPolygons = function(sourcepolygons) {
-  var EPS = 1e-5;
-  if(sourcepolygons.length < 2) return sourcepolygons;
-//  var plane = sourcepolygons[0].plane.clone();
-//  var planenormal = plane.normal;
-  
-  // Build index tables from the source polygons: 
-  var vertexcoords = [];           // array of CSG.Vector, one for each unique vertex coordinate
-  var vertexstring2index = {};     // Vertex coordinate lookup hash table, maps stringified coordinates to an integer index in vertexcoords 
-  var polygons2vertexindices = []; // Array of arrays of vertex indexes
-  sourcepolygons.map( function(polygon) {
-    if(polygon.vertices.length < 3) throw new Error("Polygon with less than 3 vertices");
-    var polygonindex = polygons2vertexindices.length;
-    var vertexindices = [];
-    var normalstring = polygon.plane.normal.x+":"+polygon.plane.normal.y+":"+polygon.plane.normal.z;
-    polygon.vertices.map( function(vertex) {
-      var vertexcoordstring = vertex.pos.x+":"+vertex.pos.y+":"+vertex.pos.z+" "+normalstring;
-      var vertexindex;
-      if(vertexcoordstring in vertexstring2index)
-      {
-        vertexindex = vertexstring2index[vertexcoordstring];
-      }
-      else
-      {
-        vertexindex = vertexcoords.length;
-        vertexstring2index[vertexcoordstring] = vertexindex;
-        vertexcoords.push(vertex.pos); 
-      }
-      vertexindices.push(vertexindex);
-    });
-    polygons2vertexindices.push(vertexindices);
-  });
-
-  var discardedpolygonindexes = {};  // set of polygonindexes that have been merged into other polygons
-  while(true)
-  {
-    var pathstring2polygonindex = {}; // maps stringified paths ("<vertexindex>:<vertexindex>") to an index in polygons2vertexindices 
-    var numpolygons = polygons2vertexindices.length;
-    for(var polygonindex=0; polygonindex < numpolygons; polygonindex++)
-    {
-      if(!discardedpolygonindexes[polygonindex])
-      {
-        var vertexindices = polygons2vertexindices[polygonindex];
-        var prevvertexindex=vertexindices[vertexindices.length - 1];
-        vertexindices.map( function(vertexindex) {
-          var pathstring = prevvertexindex + ":" + vertexindex;
-          if(pathstring in pathstring2polygonindex)
-          {
-            throw new Error("Overlapping polygons!");
-          }
-          pathstring2polygonindex[pathstring] = polygonindex; 
-          prevvertexindex = vertexindex; 
-        });
-      }      
-    }
-    
-    var donesomething = false;
-    for(var polygonindex = 0; polygonindex < numpolygons; ++polygonindex)
-    {
-      if(!discardedpolygonindexes[polygonindex])
-      {
-        var oursourcepolygon = sourcepolygons[polygonindex];
-        var vertexindices = polygons2vertexindices[polygonindex];
-        var numvertices = vertexindices.length;
-        var vertexindexindex = 0;
-        while(vertexindexindex < numvertices)
-        {
-          var nextvertexindexindex = vertexindexindex+1;
-          if(nextvertexindexindex == numvertices) nextvertexindexindex = 0;
-          var vertexindex = vertexindices[vertexindexindex];
-          var nextvertexindex = vertexindices[nextvertexindexindex];
-          var reversepathstring = nextvertexindex + ":" + vertexindex; 
-          // is the path (in reverse direction) part of another polygon?
-          if(reversepathstring in pathstring2polygonindex)
-          {
-            // Yes, this polygon is touching another polygon
-            // Get properties of the other polygon
-            var otherpolygonindex = pathstring2polygonindex[reversepathstring];
-            // can only join polygons sharing the same shared properties:
-            if(otherpolygonindex != polygonindex) // can't join with self
-            {
-              if(oursourcepolygon.shared == sourcepolygons[otherpolygonindex].shared)
-              {
-                var otherpolygonvertexindices = polygons2vertexindices[otherpolygonindex];
-                var othernumvertices = otherpolygonvertexindices.length;
-                var otherstartingindex = otherpolygonvertexindices.indexOf(nextvertexindex);
-                if(otherstartingindex < 0) throw new Error("Assertion failed");
-                var otherendingindex = otherstartingindex + 1;
-                if(otherendingindex == othernumvertices) otherendingindex = 0;
-                // Add the vertices of the other polygon to our polygon. We do this by
-                // iterating over the vertices of the other polygon in reverse direction:
-                var othervertexindexindex = otherstartingindex;
-                while(true)
-                {
-                  var prevothervertexindex = otherpolygonvertexindices[othervertexindexindex];
-                  if(othervertexindexindex == 0) othervertexindexindex = othernumvertices;
-                  --othervertexindexindex;
-                  var othervertexindex = otherpolygonvertexindices[othervertexindexindex];
-                  var pathstring = othervertexindex + ":" + prevothervertexindex;
-                  if(pathstring2polygonindex[pathstring] != otherpolygonindex)
-                  {
-                    throw new Error("Assertion failed");
-                  }
-                  // the path is now part of our polygon:
-                  pathstring2polygonindex[pathstring] = polygonindex; 
-                  if(othervertexindexindex == otherendingindex) break;
-                  // insert the vertex into our polygon:
-                  vertexindices.splice(vertexindexindex+1, 0, othervertexindex);
-                  ++numvertices;
-                }
-                // mark the other polygon as discarded:
-                discardedpolygonindexes[otherpolygonindex] = true;
-                donesomething = true;
-                --vertexindexindex; // retry the same vertex
-              } // if(oursourcepolygon.shared == sourcepolygons[otherpolygonindex].shared)
-            }
-          }
-          ++vertexindexindex;
-        }
-      }
-    }
-    if(!donesomething) break;
-    donesomething=false;
-    for(var polygonindex = 0; polygonindex < numpolygons; ++polygonindex)
-    {
-      if(!discardedpolygonindexes[polygonindex])
-      {
-        var vertexindices = polygons2vertexindices[polygonindex];
-        var numvertices = vertexindices.length;
-        var vertexindexindex = 0;
-        while(true)
-        {
-          if(numvertices < 3)
-          {
-            discardedpolygonindexes[polygonindex] = true;
-            break;
-          }
-          if(vertexindexindex >= numvertices) break;
-          var vertexcoord=vertexcoords[vertexindices[vertexindexindex]];  
-          var nextvertexindexindex = vertexindexindex+1; 
-          if(nextvertexindexindex == numvertices) nextvertexindexindex=0;  
-          var nextvertexcoord=vertexcoords[vertexindices[nextvertexindexindex]];  
-          var delta1 = nextvertexcoord.minus(vertexcoord);
-          var delta1length = delta1.length();
-          var nextnextvertexindexindex = nextvertexindexindex+1; 
-          if(nextnextvertexindexindex == numvertices) nextnextvertexindexindex=0;
-          var nextnextvertexcoord=vertexcoords[vertexindices[nextnextvertexindexindex]];  
-          var delta2 = nextnextvertexcoord.minus(nextvertexcoord);
-          var delta2length = delta2.length();
-          if( (delta1length > EPS) && (delta2length > EPS) )
-          {
-            // normalize:
-            delta1 = delta1.dividedBy(delta1length);
-            delta2 = delta2.dividedBy(delta2length);
-            var dot = delta1.dot(delta2);
-            if(dot > 1.0-EPS)
-            {
-              // three points on a row. Remove the middle one: 
-              vertexindices.splice(nextvertexindexindex, 1);
-              --numvertices;
-              if(nextvertexindexindex < vertexindexindex) --vertexindexindex;
-              donesomething = true;
-              continue;
-            }
-          }
-          ++vertexindexindex;
-        } // while(true)
-      }
-    }
-    if(!donesomething) break;    
-  } // while true
-
-  // build the output   
-  var outpolygons = []; 
-  for(var polygonindex = 0; polygonindex < numpolygons; ++polygonindex)
-  {
-    var plane = sourcepolygons[polygonindex].plane;
-    if(!discardedpolygonindexes[polygonindex])
-    {
-      var outvertices = []; 
-      var vertexindices = polygons2vertexindices[polygonindex];
-      var duplicatecheck = {};
-      vertexindices.map(function(vertexindex) {
-        if(vertexindex in duplicatecheck) throw new Error("Assertion failed");
-        duplicatecheck[vertexindex] = true;
-        var vertex = new CSG.Vertex(vertexcoords[vertexindex], plane.normal.clone());
-        outvertices.push(vertex); 
-      });
-      var polygons = CSG.Polygon.createConvexPolygonsFromVertices(outvertices, sourcepolygons[polygonindex].shared, plane);
-      polygons.map(function(p) {outpolygons.push(p)});
-    }
-  }
-  
-  return outpolygons;
-}
-
-CSG.Node.prototype.mergeCoplanarPolygons= function() {
-  this.polygons = CSG.mergeCoplanarPolygons(this.polygons);
-  if (this.front) this.front.mergeCoplanarPolygons();
-  if (this.back) this.back.mergeCoplanarPolygons();
-};
 
