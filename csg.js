@@ -1,3 +1,5 @@
+var _CSGDEBUG=true;
+
 // Constructive Solid Geometry (CSG) is a modeling technique that uses Boolean
 // operations like union and intersection to combine 3D solids. This library
 // implements CSG operations on meshes elegantly and concisely using BSP trees,
@@ -191,7 +193,14 @@ CSG.prototype = {
     this.polygons.map(function(p){ result += p.toStlString(); });
     result += "endsolid csg.js\n";
     return result;
-  }
+  },
+  
+  toString: function() {
+    var result = "";
+    this.polygons.map(function(p){ result += p.toString(); });
+    return result;
+  },
+
 };
 
 // Construct an axis-aligned solid cuboid. Optional parameters are `center` and
@@ -399,7 +408,12 @@ CSG.Vector.prototype = {
   
   toStlString: function() {
     return this.x+" "+this.y+" "+this.z;
-  }
+  },
+  
+  toString: function() {
+    return "("+this.x+", "+this.y+", "+this.z+")";
+  },
+  
 };
 
 // # class Vertex
@@ -449,7 +463,11 @@ CSG.Vertex.prototype = {
   
   toStlString: function() {
     return "vertex "+this.pos.toStlString()+"\n";
-  }
+  },
+  
+  toString: function() {
+    return this.pos.toString();
+  },
 };
 
 // # class Plane
@@ -478,6 +496,10 @@ CSG.Plane.prototype = {
   flip: function() {
     this.normal = this.normal.negated();
     this.w = -this.w;
+  },
+
+  equals: function(n) {
+    return this.normal.equals(n.normal) && this.w == n.w;
   },
 
   // Split `polygon` by this plane if needed, then put the polygon or polygon
@@ -528,11 +550,15 @@ CSG.Plane.prototype = {
             b.push(v.clone());
           }
         }
-        if (f.length >= 3) front.push(new CSG.Polygon(f, polygon.shared));//, polygon.plane.clone()));
-        if (b.length >= 3) back.push(new CSG.Polygon(b, polygon.shared));//, polygon.plane.clone()));
+        if (f.length >= 3) front.push(new CSG.Polygon(f, polygon.shared, polygon.plane.clone()));
+        if (b.length >= 3) back.push(new CSG.Polygon(b, polygon.shared, polygon.plane.clone()));
         break;
     }
-  }
+  },
+  
+  toString: function() {
+    return "[normal: "+this.normal.toString()+", w: "+this.w+"]";
+  },
 };
 
 
@@ -551,7 +577,6 @@ CSG.Plane.prototype = {
 // To avoid unnecessary recalculation, the plane can alternatively be
 // passed as the third argument 
 CSG.Polygon = function(vertices, shared, plane) {
-  var _DEBUG=true;
   this.vertices = vertices;
   var numvertices = vertices.length;
 
@@ -565,7 +590,7 @@ CSG.Polygon = function(vertices, shared, plane) {
     this.plane = CSG.Plane.fromPoints(vertices[0].pos, vertices[1].pos, vertices[2].pos);
   }
   
-  if(_DEBUG)
+  if(_CSGDEBUG)
   {
     this.checkIfConvex();
   }
@@ -579,18 +604,9 @@ CSG.Polygon.prototype = {
   
   // check whether the polygon is convex (it should be, otherwise we will get unexpected results)
   checkIfConvex: function() {
-    var numvertices = this.vertices.length;
-    var prevprevpos=this.vertices[numvertices-2].pos;
-    var prevpos=this.vertices[numvertices-1].pos;
-    for(var i=0; i < numvertices; i++)
+    if(! CSG.Polygon.verticesConvex(this.vertices, this.plane.normal))
     {
-      var pos=this.vertices[i].pos;
-      if(!CSG.Polygon.isConvexPoint(prevprevpos, prevpos, pos, this.plane.normal))
-      {
-        throw new Error("Not convex!");
-      }
-      prevprevpos=prevpos;
-      prevpos=pos;
+      throw new Error("Not convex!");
     }
   },
 
@@ -622,7 +638,55 @@ CSG.Polygon.prototype = {
       } 
     }
     return result;
+  },
+  
+  toString: function() {
+    var result = "Polygon plane: "+this.plane.toString()+"\n";
+    this.vertices.map(function(vertex) {
+      result += "  "+vertex.toString()+"\n";
+    });
+    return result;
+  },  
+};
+
+CSG.Polygon.verticesConvex = function(vertices, planenormal) {
+  var numvertices = vertices.length;
+  if(numvertices > 2)
+  {
+    var prevprevpos=vertices[numvertices-2].pos;
+    var prevpos=vertices[numvertices-1].pos;
+    for(var i=0; i < numvertices; i++)
+    {
+      var pos=vertices[i].pos;
+      if(!CSG.Polygon.isConvexPoint(prevprevpos, prevpos, pos, planenormal))
+      {
+        return false;
+      }
+      prevprevpos=prevpos;
+      prevpos=pos;
+    }
   }
+  return true;
+};
+
+CSG.Polygon.verticesStrictlyConvex = function(vertices, planenormal) {
+  var numvertices = vertices.length;
+  if(numvertices > 2)
+  {
+    var prevprevpos=vertices[numvertices-2].pos;
+    var prevpos=vertices[numvertices-1].pos;
+    for(var i=0; i < numvertices; i++)
+    {
+      var pos=vertices[i].pos;
+      if(!CSG.Polygon.isStrictlyConvexPoint(prevprevpos, prevpos, pos, planenormal))
+      {
+        return false;
+      }
+      prevprevpos=prevpos;
+      prevpos=pos;
+    }
+  }
+  return true;
 };
 
 // Create a polygon from the given points
@@ -653,7 +717,25 @@ CSG.Polygon.isConvexPoint = function(prevpoint, point, nextpoint, normal) {
   return (crossdotnormal >= 0);
 };
 
+CSG.Polygon.isStrictlyConvexPoint = function(prevpoint, point, nextpoint, normal) {
+  var crossproduct=point.minus(prevpoint).cross(nextpoint.minus(point));
+  var crossdotnormal=crossproduct.dot(normal);
+  return (crossdotnormal >= 1e-5);
+};
+
 // # class PolygonTreeNode
+
+// This class manages hierarchical splits of polygons
+// At the top is a root node which doesn hold a polygon, only child PolygonTreeNodes
+// Below that are zero or more 'top' nodes; each holds a polygon. The polygons can be in different planes 
+// splitByPlane() splits a node by a plane. If the plane intersects the polygon, two new child nodes
+// are created holding the splitted polygon.
+// getPolygons() retrieves the polygon from the tree. If for PolygonTreeNode the polygon is split but 
+// the two split parts (child nodes) are still intact, then the unsplit polygon is returned.
+// This ensures that we can safely split a polygon into many fragments. If the fragments are untouched,
+//  getPolygons() will return the original unsplit polygon instead of the fragments.
+// remove() removes a polygon from the tree. Once a polygon is removed, the parent polygons are invalidated 
+// since they are no longer intact. 
 
 // constructor creates the root node:
 CSG.PolygonTreeNode = function() {
@@ -663,16 +745,14 @@ CSG.PolygonTreeNode = function() {
 };
 
 CSG.PolygonTreeNode.prototype = {
-  // add child to a node
-  // this should be called whenever the polygon is split
-  // a child should be created for every fragment of the split polygon 
-  // returns the newly created child
-  addChild: function(polygon) {
-    var newchild = new CSG.PolygonTreeNode();
-    newchild.parent = this;
-    newchild.polygon = polygon;
-    this.children.push(newchild);
-    return newchild;
+  // fill the tree with polygons. Should be called on the root node only; child nodes must
+  // always be a derivate (split) of the parent node.
+  addPolygons: function(polygons) {
+    if(!this.isRootNode()) throw new Error("Assertion failed");  // new polygons can only be added to root node; children can only be splitted polygons
+    var _this = this;
+    polygons.map(function(polygon) {
+      _this.addChild(polygon);
+    });
   },
   
   // remove a node
@@ -680,60 +760,18 @@ CSG.PolygonTreeNode.prototype = {
   // - the parent is removed recursively
   remove: function() {
     if(this.isRootNode()) throw new Error("Assertion failed");  // can't remove root node
-    if(this.children.length) throw new Error("Assertion failed"); 
-    var newtoplevelnodes = [];
-    var parent = this.parent;
-    this.polygon = null;
-    this.parent = null;    
-    parent.removeChild(this, newtoplevelnodes);
-  },
-  
-  removeChild: function(child, newtoplevelnodes) {
-    // remove the child: 
-    var i=this.children.indexOf(child);
+    if(this.children.length) throw new Error("Assertion failed"); // we shouldn't remove nodes with children
+    
+    // remove ourselves from the parent's children list:
+    var parentschildren = this.parent.children;
+    var i = parentschildren.indexOf(this);
     if(i < 0) throw new Error("Assertion failed");
-    if(child.parent) throw new Error("Assertion failed"); 
-    this.children.splice(i,1);
-    if(this.isRootNode())
-    {
-      // it's the root node
-      // add newtoplevelnodes to the children
-      var _this = this;
-      newtoplevelnodes.map(function(child) {
-        child.parent = _this;
-        _this.children.push(child);
-      });
-    }
-    else    
-    {
-      // it's a regular node
-      // move the remaining children to newtoplevelnodes
-      this.children.map(function(achild) {
-        newtoplevelnodes.push(achild);
-      });
-      this.children = [];
-      // and commit suicide:
-      var parent = this.parent;
-      this.polygon = null;
-      this.parent = null;    
-      parent.removeChild(this, newtoplevelnodes);    
-    }
-  },
-  
-  getPolygon: function () {
-    if(this.isRootNode()) throw new Error("Assertion failed");  // root node doesn't have a polygon
-    return this.polygon;
+    parentschildren.splice(i,1);
+    
+    // invalidate the parent's polygon, and of all parents above it:
+    this.parent.recursivelyInvalidatePolygon();
   },
 
-  allPolygons: function () {
-    if(!this.isRootNode()) throw new Error("Assertion failed");  // can only call this on the root node
-    var polygons = [];
-    this.children.map(function(child) {
-      polygons.push(child.polygon);
-    });
-    return polygons;
-  },
-  
   isRootNode: function() {
     return !this.parent;
   },  
@@ -744,16 +782,44 @@ CSG.PolygonTreeNode.prototype = {
     this.invertSub();
   },
 
-  invertSub: function() {
+  getPolygon: function () {
+    if(!this.polygon) throw new Error("Assertion failed");  // doesn't have a polygon, which means that it has been broken down
+    return this.polygon;
+  },
+
+  getPolygons: function (result) {
     if(this.polygon)
     {
-      this.polygon.flip();
+      // the polygon hasn't been broken yet. We can ignore the children and return our polygon:
+      result.push(this.polygon);
     }
-    this.children.map(function(child) {
-      child.invertSub();
-    });
+    else
+    {
+      // our polygon has been split up and broken, so gather all subpolygons from the children:
+      var childpolygons = [];
+      this.children.map(function(child) {
+        child.getPolygons(childpolygons);
+      });
+//      if( (this.parent) && (childpolygons.length == 2) )
+//      {
+//        var joinedpolygon = CSG.PolygonTreeNode.tryJoiningPolygons(childpolygons[0], childpolygons[1]);
+//        if(joinedpolygon)
+//        {
+//          childpolygons=[joinedpolygon];
+//        }
+//      }
+
+//      if(this.parent && (!this.parent.parent) )
+//      {
+//        // it's a top node:
+//        CSG.PolygonTreeNode.tryJoiningManyPolygons(childpolygons);
+//      }
+      childpolygons.map(function(p) {
+        result.push(p);
+      });
+    }
   },
-  
+
   // split the node by a plane; add the resulting nodes to the frontnodes and backnodes array  
   // If the plane doesn't intersect the polygon, the 'this' object is added to one of the arrays
   // If the plane does intersect the polygon, two new child nodes are created for the front and back fragments,
@@ -809,11 +875,137 @@ CSG.PolygonTreeNode.prototype = {
       }
     }
   },
+  
+ 
+  // PRIVATE methods from here:
 
+  // add child to a node
+  // this should be called whenever the polygon is split
+  // a child should be created for every fragment of the split polygon 
+  // returns the newly created child
+  addChild: function(polygon) {
+    var newchild = new CSG.PolygonTreeNode();
+    newchild.parent = this;
+    newchild.polygon = polygon;
+    this.children.push(newchild);
+    return newchild;
+  },
+
+  invertSub: function() {
+    if(this.polygon)
+    {
+      this.polygon.flip();
+    }
+    this.children.map(function(child) {
+      child.invertSub();
+    });
+  },
+  
+  recursivelyInvalidatePolygon: function() {
+    this.polygon = null;
+    if(this.parent)
+    {
+      this.parent.recursivelyInvalidatePolygon();
+    }
+  },
+  
 };
 
 
+// Experimental and terribly inefficient:
+// Try joining polygons into convex polygons
+// polygons: array of CSG.Polygon; will be modified if polygons are merged 
+CSG.PolygonTreeNode.tryJoiningManyPolygons = function(polygons) {
+  var numpolygons=polygons.length;
+  if(numpolygons >= 2)
+  {
+    var i1=0;
+    while(true)
+    {
+      if(i1 >= numpolygons-1) break;
+      var i2=i1+1;
+      while(true)
+      {
+        if(i2 >= numpolygons) break;
+        var joined = CSG.PolygonTreeNode.tryJoiningPolygons(polygons[i1], polygons[i2]); 
+        if(joined)
+        {
+          polygons.splice(i1,1,joined);
+          polygons.splice(i2,1);
+          --numpolygons;
+          i2 = i1+1;
+          continue;
+        }
+        ++i2;
+      }
+      ++i1;
+    }
+  }
+};
+
+// Experimental and terribly inefficient:
+// Try joining two polygons into a convex polygon.
+// If succesful returns the joined polygon (a  CSG.Polygon), null otherwise
+// polygon1, polygon2: CSG.Polygon instances 
+CSG.PolygonTreeNode.tryJoiningPolygons = function(polygon1, polygon2) {
+  var newvertices = null;
+  if(!polygon1.plane.equals(polygon2.plane)) throw new Error("Assertion failed");
+  var numpoints1 = polygon1.vertices.length;
+  var numpoints2 = polygon2.vertices.length;
+  
+  if( (numpoints1 >= 3) && (numpoints2 >= 3) )
+  {
+    var prevpoint1=polygon1.vertices[numpoints1-1].pos;    
+    for(var p1=0; p1 < numpoints1; p1++)
+    {
+      var point1=polygon1.vertices[p1].pos;
+      var prevpoint2=polygon2.vertices[numpoints2-1].pos;    
+      for(var p2=0; p2 < numpoints2; p2++)
+      {
+        var point2=polygon2.vertices[p2].pos;
+        if(point2.equals(prevpoint1) && point1.equals(prevpoint2))
+        {
+          // we have matching vertices!
+          newvertices = [];
+          var i=p1;
+          var count=numpoints1 - 1;
+          while(count-- > 0)
+          {
+            newvertices.push(polygon1.vertices[i].clone());
+            ++i;
+            if(i >= numpoints1) i=0;
+          }
+          i = p2;
+          count = numpoints2 - 1; 
+          while(count-- > 0)
+          {
+            newvertices.push(polygon2.vertices[i].clone());
+            ++i;
+            if(i >= numpoints2) i=0;
+          }
+        } 
+      }
+      prevpoint1 == point1;    
+    }
+  }
+  var result = null;
+  if(newvertices)
+  {
+    // we have succesfully joined the polygons, but we need to check if the resulting polygon is convex:
+    var isconvex = CSG.Polygon.verticesStrictlyConvex(newvertices, polygon1.plane.normal);
+    if(isconvex)
+    {
+      result = new CSG.Polygon(newvertices, polygon1.shared, polygon1.plane.clone()); 
+    }
+  }
+  return result;
+}
+
+
 // # class Tree
+// This is the root of a BSP tree
+// We are using this separate class for the root of the tree, to hold the PolygonTreeNode root
+// The actual tree is kept in this.rootnode
 CSG.Tree = function(polygons) {
   this.polygonTree = new CSG.PolygonTreeNode();
   this.rootnode = new CSG.Node();
@@ -833,11 +1025,12 @@ CSG.Tree.prototype = {
   },
 
   allPolygons: function() {
-    return this.polygonTree.allPolygons();
+    var result = [];
+    this.polygonTree.getPolygons(result);
+    return result;
   },
 
   addPolygons: function(polygons) {
-//    polygons.map(this.addPolygon, this);
     var _this = this;
     polygons.map(function(p) {
       _this.addPolygon(p.clone());
@@ -853,9 +1046,11 @@ CSG.Tree.prototype = {
 // # class Node
 
 // Holds a node in a BSP tree. A BSP tree is built from a collection of polygons
-// by picking a polygon to split along. That polygon (and all other coplanar
-// polygons) are added directly to that node and the other polygons are added to
-// the front and/or back subtrees. This is not a leafy BSP tree since there is
+// by picking a polygon to split along.
+// Polygons are not stored directly in the tree, but in PolygonTreeNodes, stored in
+// this.polygontreenodes. Those PolygonTreeNodes are children of the owning
+// CSG.Tree.polygonTree
+// This is not a leafy BSP tree since there is
 // no distinction between internal and leaf nodes.
 
 CSG.Node = function() {
@@ -878,7 +1073,7 @@ CSG.Node.prototype = {
 
   // clip polygontreenodes to our plane
   // returns a new array of PolygonTreeNodes with the clipped polygons
-  // also removes all clipped PolygonTreeNodes, so the polygon tree is modified!
+  // also calls remove() for all clipped PolygonTreeNodes, so the polygon tree is modified!
   clipPolygons: function(polygontreenodes) {
     var clippednodes;
     if(this.plane)
@@ -894,6 +1089,10 @@ CSG.Node.prototype = {
       if(this.front)
       {
         clippedfrontnodes = this.front.clipPolygons(frontnodes);
+      }
+      else
+      {
+        clippedfrontnodes = frontnodes;
       }
       if(this.back)
       {
@@ -919,8 +1118,11 @@ CSG.Node.prototype = {
   // `tree`.
   clipTo: function(tree) {
     var origpolygontreenodes = this.polygontreenodes;
-    var clippedtreenodes = tree.rootnode.clipPolygons(origpolygontreenodes);
-    this.polygontreenodes = clippedtreenodes;
+    if(origpolygontreenodes.length > 0)
+    {
+      var clippedtreenodes = tree.rootnode.clipPolygons(origpolygontreenodes);
+      this.polygontreenodes = clippedtreenodes;
+    }
     if (this.front) this.front.clipTo(tree);
     if (this.back) this.back.clipTo(tree);
   },
@@ -1413,8 +1615,8 @@ CSG.Polygon.prototype.expand = function(radius, resolution) {
   }
   var extrudevector=this.plane.normal.unit().times(2*radius);
   var translatedpolygon = this.translate(extrudevector.times(-0.5));
-  var extrudedface = translatedpolygon.extrude(extrudevector);
-  result=result.union(extrudedface); 
+  var extrudedface = translatedpolygon.extrude(extrudevector);  
+  result=result.union(extrudedface);
   return result;
 };
 
