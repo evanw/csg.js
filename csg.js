@@ -1,5 +1,39 @@
 var _CSGDEBUG=true;
 
+/*
+Todo: lots!
+
+Polygon reduction: after CSG operations we still have lots of adjacent coplanar
+polygon fragments, even though we keep track of hierarchical splits. 
+These fragments should be joined into one or more convex polygons.
+Probably this can be done efficiently using a sweep based algorithm.
+To prevent problems due to rounding errors we should keep track for each
+side of a polygon by which plane it was split. If we know that two sides
+of two polygons were split by the same plane then we can determine exactly
+if a point is a T junction. Otherwise we can only find this out by interpolating
+line segments, yielding small rounding errors.
+
+CSG.Polygon.prototype.expand: we should rotate the generated cylinders and spheres
+such that they join nicely with the extruded plane even if a low precision is used.
+
+Add a invertedClipTo() function so we can get rid of the inverts() here:
+    b.invert();
+    b.clipTo(a);
+    b.invert();
+
+splitByPlane() is built around the original splitPolygon() function, there's 
+some juggling of arrays. Can be integrated more tightly and efficiently.
+
+The flip() and invert() methods change the original object, while all other
+methods return a newly created object. If we change this we can get rid
+of some clone()s, and multiple polygons can for example reference the same
+Plane object instead of keeping cloned copies.
+
+-joostn
+*/
+
+
+
 // Constructive Solid Geometry (CSG) is a modeling technique that uses Boolean
 // operations like union and intersection to combine 3D solids. This library
 // implements CSG operations on meshes elegantly and concisely using BSP trees,
