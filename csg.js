@@ -467,8 +467,8 @@ CSG.Plane.prototype = {
             b.push(v.clone());
           }
         }
-        if (f.length >= 3) front.push(new CSG.Polygon(f, polygon.shared));
-        if (b.length >= 3) back.push(new CSG.Polygon(b, polygon.shared));
+        if (f.length >= 3) front.push(new CSG.Polygon(f, polygon.shared, polygon.plane));
+        if (b.length >= 3) back.push(new CSG.Polygon(b, polygon.shared, polygon.plane));
         break;
     }
   }
@@ -485,16 +485,16 @@ CSG.Plane.prototype = {
 // polygons that are clones of each other or were split from the same polygon.
 // This can be used to define per-polygon properties (such as surface color).
 
-CSG.Polygon = function(vertices, shared) {
+CSG.Polygon = function(vertices, shared, plane) {
   this.vertices = vertices;
   this.shared = shared;
-  this.plane = CSG.Plane.fromPoints(vertices[0].pos, vertices[1].pos, vertices[2].pos);
+  this.plane = plane ? plane.clone() : CSG.Plane.fromPoints(vertices[0].pos, vertices[1].pos, vertices[2].pos);
 };
 
 CSG.Polygon.prototype = {
   clone: function() {
     var vertices = this.vertices.map(function(v) { return v.clone(); });
-    return new CSG.Polygon(vertices, this.shared);
+    return new CSG.Polygon(vertices, this.shared, this.plane);
   },
 
   flip: function() {
