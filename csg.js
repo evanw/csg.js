@@ -404,10 +404,18 @@ CSG.Plane = function(normal, w) {
 // point is on the plane.
 CSG.Plane.EPSILON = 1e-5;
 
-CSG.Plane.fromPoints = function(a, b, c) {
-  var n = b.minus(a).cross(c.minus(a)).unit();
-  return new CSG.Plane(n, n.dot(a));
+CSG.Plane.fromPoints = function() {
+   var first=arguments[1].minus(arguments[0]);
+   var normal= {};
+   var i=2;
+   do {
+      normal=first.cross(arguments[i].minus(arguments[0]));
+      i++;
+   } while (i<arguments.length && normal.dot(normal)<1e-10)
+   var n=normal.unit();
+   return new CSG.Plane(n,n.dot(arguments[0]));
 };
+
 
 CSG.Plane.prototype = {
   clone: function() {
@@ -488,7 +496,7 @@ CSG.Plane.prototype = {
 CSG.Polygon = function(vertices, shared) {
   this.vertices = vertices;
   this.shared = shared;
-  this.plane = CSG.Plane.fromPoints(vertices[0].pos, vertices[1].pos, vertices[2].pos);
+  this.plane = CSG.Plane.fromPoints.apply(CSG.Plane.fromPoints,vertices.map( function(v) {return v.pos} ));
 };
 
 CSG.Polygon.prototype = {
