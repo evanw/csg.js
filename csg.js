@@ -578,10 +578,17 @@ CSG.Node.prototype = {
   // (no heuristic is used to pick a good split).
   build: function(polygons) {
     if (!polygons.length) return;
-    if (!this.plane) this.plane = polygons[0].plane.clone();
+    var myPolygon;
+    if (!this.plane) {
+      myPolygon = polygons[0];
+      this.plane = polygons[0].plane.clone();
+      this.polygons.push(myPolygon);
+    }
     var front = [], back = [];
     for (var i = 0; i < polygons.length; i++) {
-      this.plane.splitPolygon(polygons[i], this.polygons, this.polygons, front, back);
+      if (polygons !== myPolygon){
+        this.plane.splitPolygon(polygons[i], this.polygons, this.polygons, front, back);
+      }
     }
     if (front.length) {
       if (!this.front) this.front = new CSG.Node();
