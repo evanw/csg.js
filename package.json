@@ -1,6 +1,6 @@
 {
   "name": "csg",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Constructive solid geometry on meshes using BSP trees in JavaScript",
   "main": "csg.js",
   "scripts": {
