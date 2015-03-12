@@ -1,0 +1,25 @@
+{
+  "name": "csg",
+  "version": "1.0.0",
+  "description": "Constructive solid geometry on meshes using BSP trees in JavaScript",
+  "main": "csg.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "evanw",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/thibauts/csg.js.git"
+  },  
+  "dependencies": {
+  },
+  "keywords": [
+    "csg",
+    "solid",
+    "meshes",
+    "union",
+    "intersect",
+    "subtract"
+  ]
+}
