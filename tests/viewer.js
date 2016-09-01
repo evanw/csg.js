@@ -1,7 +1,7 @@
 // Set the color of all polygons in this solid
-CSG.prototype.setColor = function(r, g, b) {
+CSG.prototype.setColor = function(r, g, b, a) {
   this.toPolygons().map(function(polygon) {
-    polygon.shared = [r, g, b];
+    polygon.shared = [r, g, b, a];
   });
 };
 
@@ -31,6 +31,7 @@ var viewers = [];
 
 // Set to true so lines don't use the depth buffer
 Viewer.lineOverlay = false;
+Viewer.colorAlpha = false;
 
 // A viewer is a WebGL canvas that lets the user view a mesh. The user can
 // tumble it around by dragging the mouse.
@@ -71,25 +72,25 @@ function Viewer(csg, width, height, depth) {
 
   // Shader with diffuse and specular lighting
   this.lightingShader = new GL.Shader('\
-    varying vec3 color;\
+    varying vec4 color;\
     varying vec3 normal;\
     varying vec3 light;\
     void main() {\
       const vec3 lightDir = vec3(1.0, 2.0, 3.0) / 3.741657386773941;\
       light = (gl_ModelViewMatrix * vec4(lightDir, 0.0)).xyz;\
-      color = gl_Color.rgb;\
+      color = gl_Color.rgba;\
       normal = gl_NormalMatrix * gl_Normal;\
       gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;\
     }\
   ', '\
-    varying vec3 color;\
+    varying vec4 color;\
     varying vec3 normal;\
     varying vec3 light;\
     void main() {\
       vec3 n = normalize(normal);\
       float diffuse = max(0.0, dot(light, n));\
       float specular = pow(max(0.0, -reflect(light, n).z), 32.0) * sqrt(diffuse);\
-      gl_FragColor = vec4(mix(color * (0.3 + 0.7 * diffuse), vec3(1.0), specular), 1.0);\
+      gl_FragColor = vec4(mix(color.rgb * (0.3 + 0.7 * diffuse), vec3(1.0), specular), color.a);\
     }\
   ');
 
@@ -116,8 +117,16 @@ function Viewer(csg, width, height, depth) {
     gl.rotate(angleY, 0, 1, 0);
 
     if (!Viewer.lineOverlay) gl.enable(gl.POLYGON_OFFSET_FILL);
+    if (Viewer.colorAlpha) {
+      gl.enable(gl.BLEND); 
+      gl.disable(gl.CULL_FACE);
+    }
     that.lightingShader.draw(that.mesh, gl.TRIANGLES);
     if (!Viewer.lineOverlay) gl.disable(gl.POLYGON_OFFSET_FILL);
+    if (Viewer.colorAlpha) {
+      gl.disable(gl.BLEND); 
+      gl.enable(gl.CULL_FACE);
+    }
 
     if (Viewer.lineOverlay) gl.disable(gl.DEPTH_TEST);
     gl.enable(gl.BLEND);
