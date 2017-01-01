@@ -45,6 +45,7 @@ canvas { cursor: move; }
 </head><body>
   <h1>csg.js</h1>
   <p><b>Source code:</b> <a href="http://github.com/evanw/csg.js/">http://github.com/evanw/csg.js/</a><br>
+    <b>Source code:</b> <a href="http://github.com/joostn/csg.js/">http://github.com/joostn/csg.js/</a><br>
     <b>Documentation:</b> <a href="http://evanw.github.com/csg.js/docs/">http://evanw.github.com/csg.js/docs/</a></p>
 
   <h2>Introduction</h2>
@@ -96,10 +97,51 @@ var c = CSG.cylinder({ radius: 0.7, start: [-1, 0, 0], end: [1, 0, 0] });
 var d = CSG.cylinder({ radius: 0.7, start: [0, -1, 0], end: [0, 1, 0] });
 var e = CSG.cylinder({ radius: 0.7, start: [0, 0, -1], end: [0, 0, 1] });</pre>
 
+  <h2>Transformations</h2>
+  <p>Supported transformations: scale, translate and rotate:</p>
+  <table>
+    <tr>
+      <td><div id="11" class="viewer" style="background-position:-403px -1px;width:400px;height:400px;"></div></td>
+    </tr>
+  </table>
+  <p>Code for the above:</p>
+  <pre>var a = CSG.cube().translate([0, -0.5, -0.5]);
+var b = CSG.sphere().scale([2,1,1]);
+var c = CSG.cube();
+
+// Multiple transforms combined into a single matrix:
+var m=new CSG.Matrix4x4();
+m=m.multiply(CSG.Matrix4x4.rotationX(40));
+m=m.multiply(CSG.Matrix4x4.rotationZ(40));
+m=m.multiply(CSG.Matrix4x4.translation([-.5, 0, 0]));
+c=c.transform(m);
+
+a.setColor(1, 1, 0);
+b.setColor(0, 0.5, 1);
+c.setColor(0, 1, 0);
+return a.union(b).union(c);</pre>
+
+  <h2>2d shapes</h2>
+  <p>CSG.Polygon2D holds a 2D shape. 2D shapes can be rotated, scaled and translated. A 2D shape can be extruded into a 3D CSG object:</p>
+  <table>
+    <tr>
+      <td><div id="12" class="viewer" style="background-position:-403px -1px;width:400px;height:400px;"></div></td>
+    </tr>
+  </table>
+  <p>Code for the above:</p>
+  <pre>var shape2d=new CSG.Polygon2D([[0,0], [5,0], [3,5], [0,5]]);
+shape2d=shape2d.translate([-2, -2]);
+shape2d=shape2d.rotate(20);
+shape2d=shape2d.scale([0.2, 0.2]);
+var extruded=shape2d.extrude({offset: [0.5, 0, 2], twistangle: 180, twiststeps: 100});
+extruded.setColor(1, 1, 0);
+return extruded;
+</pre>
+
   <h2>Try it!</h2>
   <table>
     <tr>
-      <td><div id="11" class="viewer" style="background-image:none;width:400px;height:400px;"></div></td>
+      <td><div id="13" class="viewer" style="background-image:none;width:400px;height:400px;"></div></td>
     </tr>
   </table>
   <p>Edit the code below to construct your own solids. A browser with WebGL is required to view the results. The <code>setColor(r, g, b)</code> function sets the color of the solid using values between 0 and 1 (just for display, not part of csg.js):</p>
@@ -152,6 +194,29 @@ for (var i = 0; i < operations.length; i++) {
   var size = i + 1 == operations.length ? 400 : 150;
   addViewer(new Viewer(operations[i], size, size, 5));
 }
+
+// transormations example:
+var a = CSG.cube().translate([0, -0.5, -0.5]);
+var b = CSG.sphere().scale([2,1,1]);
+var c = CSG.cube();
+var m=new CSG.Matrix4x4();
+m=m.multiply(CSG.Matrix4x4.rotationX(40));
+m=m.multiply(CSG.Matrix4x4.rotationZ(40));
+m=m.multiply(CSG.Matrix4x4.translation([-.5, 0, 0]));
+c=c.transform(m);
+a.setColor(1, 1, 0);
+b.setColor(0, 0.5, 1);
+c.setColor(0, 1, 0);
+addViewer(new Viewer(a.union(b).union(c), 400, 400, 5));
+
+// 2D extrusion example:
+var shape2d=new CSG.Polygon2D([[0,0], [5,0], [3,5], [0,5]]);
+shape2d=shape2d.translate([-2, -2]);
+shape2d=shape2d.rotate(20);
+shape2d=shape2d.scale([0.2, 0.2]);
+var extruded=shape2d.extrude({offset: [0.5, 0, 2], twistangle: 180, twiststeps: 100});
+extruded.setColor(1, 1, 0);
+addViewer(new Viewer(extruded, 400, 400, 5));
 
 // Set up interactive demo
 var tryit = document.getElementById('tryit');

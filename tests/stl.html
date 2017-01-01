@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html><head>
+  <script src="lightgl.js"></script>
+  <script src="../csg.js"></script>
+  <script src="viewer.js"></script>
+  <style>
+
+body {
+  font: 14px/20px 'Helvetica Neue Light', HelveticaNeue-Light, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 50px 50px 200px 50px;
+}
+
+pre, code, textarea {
+  font: 12px/20px Monaco, monospace;
+  border: 1px solid #CCC;
+  border-radius: 3px;
+  background: #F9F9F9;
+  padding: 0 3px;
+  color: #555;
+}
+pre, textarea {
+  padding: 10px;
+  width: 100%;
+}
+textarea {
+  height: 200px;
+}
+textarea:focus {
+  outline: none;
+}
+
+h1, h2 { font: bold 50px/50px 'Helvetica Neue', Helvetica, Arial; }
+h2 { font-size: 30px; margin: 100px 0 0 0; }
+a { color: inherit; }
+.viewer { width: 200px; height: 200px; background: #EEE url(images.png); }
+#combined .viewer { width: 150px; height: 150px; }
+table { border-collapse: collapse; margin: 0 auto; }
+td { padding: 5px; text-align: center; }
+td code { background: none; border: none; color: inherit; }
+canvas { cursor: move; }
+
+  </style>
+<script>
+
+var gViewer=null;
+var gSolid=new CSG();
+var gSolidSource="";
+
+function onload()
+{
+  gViewer = new Viewer(new CSG(), 400, 400, 5);
+  document.getElementById("viewer").appendChild(gViewer.gl.canvas);
+}
+
+function updateSolid()
+{
+  var code=document.getElementById('code').value;
+  if(code != gSolidSource)
+  {
+    gSolidSource=code;
+    var errdiv=document.getElementById('error');
+    try {
+      gSolid = new Function(code)();
+      errdiv.innerHTML = '';
+    } catch (e) {
+      errdiv.innerHTML = 'Error: <code>' + e.toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code>';
+      gSolid=new CSG();
+    }
+    gViewer.mesh = gSolid.toMesh();
+    gViewer.gl.ondraw();
+  }
+}
+
+function updatePreview()
+{
+  updateSolid();
+}
+
+function getStl()
+{
+  updateSolid();
+  var stl=gSolid.toStlString();
+  document.getElementById('stloutput').value=stl;
+}
+
+</script>  
+</head><body onload="onload()">
+  Create an STL file using constructive solid modeling. Click Update Preview to parse the source code from the textarea.
+  Click Get STL to generate the stl data. Save this to a .stl file and feed to your 3d printing software!
+  <table>
+    <tr>
+      <td><div id="viewer" class="viewer" style="background-image:none;width:400px;height:400px;"></div></td>
+    </tr>
+  </table>
+  <textarea id="code">var a = CSG.cube();
+var b = CSG.sphere({ radius: 1.35 });
+a.setColor(1, 1, 0);
+b.setColor(0, 0.5, 1);
+return a.subtract(b);
+</textarea>
+<p id="error"></p>
+<br>
+<input type="submit" value="Update preview" onclick="updatePreview(); return false;"><br>
+<input type="submit" value="Get STL" onclick="getStl(); return false;"><br>
+<textarea id="stloutput" readonly style="width: 80%; height: 100px"></textarea>
+</body>
+</html>
