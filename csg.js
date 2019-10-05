@@ -23,10 +23,11 @@
 //     b.clipTo(a);
 //     a.build(b.allPolygons());
 // 
-// The only tricky part is handling overlapping coplanar polygons in both trees.
-// The code above keeps both copies, but we need to keep them in one tree and
-// remove them in the other tree. To remove them from `b` we can clip the
-// inverse of `b` against `a`. The code for union now looks like this:
+// The only tricky part is handling overlapping coplanar (same normal direction)
+// polygons in both trees. The code above keeps both copies, but we need to keep 
+// them in one tree and remove them in the other tree. To remove them from `b` we
+// can clip the inverse of `b` against `a`. The code for union now looks like
+// this:
 // 
 //     a.clipTo(b);
 //     b.clipTo(a);
